@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes Management - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/modal.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Notes Management</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openUploadModal()">
+                        <i class="fas fa-upload"></i>
+                        Upload Note
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Search and Filter -->
+            <section class="search-section">
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search notes..." onkeyup="handleSearch()">
+                    </div>
+                    <select id="classFilter" onchange="handleClassFilter()" class="form-select">
+                        <option value="">All Classes</option>
+                    </select>
+                    <select id="divisionFilter" onchange="handleDivisionFilter()" class="form-select">
+                        <option value="">All Divisions</option>
+                    </select>
+                    <select id="teacherFilter" onchange="handleTeacherFilter()" class="form-select">
+                        <option value="">All Teachers</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="refreshNotes()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Notes Grid -->
+            <section class="notes-section">
+                <div class="notes-grid" id="notesGrid">
+                    <!-- Notes will be loaded here -->
+                </div>
+                
+                <!-- Loading Skeleton -->
+                <div class="skeleton-loader" id="skeletonLoader">
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script>
+        let notesData = [];
+        let classesData = [];
+        let divisionsData = [];
+        let teachersData = [];
+        let filteredNotes = [];
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isAuthenticated() || (!hasRole('TEACHER') && !hasRole('STUDENT'))) {
+                window.location.href = '/index.html';
+                return;
+            }
+            
+            window.loadSidebar();
+            loadInitialData();
+        });
+        
+        async function loadInitialData() {
+            try {
+                showLoading();
+                hideSkeleton();
+                
+                // Load all data
+                const [notesResponse, classesResponse, divisionsResponse, teachersResponse] = await Promise.all([
+                    commonAPI.getNotes(),
+                    commonAPI.getClasses(),
+                    commonAPI.getDivisions(),
+                    commonAPI.getTeachers()
+                ]);
+                
+                if (notesResponse) {
+                    notesData = notesResponse;
+                    filteredNotes = notesResponse;
+                }
+                
+                if (classesResponse) {
+                    classesData = classesResponse;
+                    populateClassFilter();
+                }
+                
+                if (divisionsResponse) {
+                    divisionsData = divisionsResponse;
+                    populateDivisionFilter();
+                }
+                
+                if (teachersResponse) {
+                    teachersData = teachersResponse;
+                    populateTeacherFilter();
+                }
+                
+                renderNotesGrid();
+            } catch (error) {
+                console.error('Load data error:', error);
+                showToast('Failed to load data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function populateClassFilter() {
+            const classFilter = document.getElementById('classFilter');
+            if (classFilter && classesData) {
+                classFilter.innerHTML = '<option value="">All Classes</option>' + 
+                    classesData.map(cls => `<option value="${cls.id}">${cls.className}</option>`).join('');
+            }
+        }
+        
+        function populateDivisionFilter() {
+            const divisionFilter = document.getElementById('divisionFilter');
+            if (divisionFilter && divisionsData) {
+                divisionFilter.innerHTML = '<option value="">All Divisions</option>' + 
+                    divisionsData.map(div => `<option value="${div.id}">${div.divisionName}</option>`).join('');
+            }
+        }
+        
+        function populateTeacherFilter() {
+            const teacherFilter = document.getElementById('teacherFilter');
+            if (teacherFilter && teachersData) {
+                teacherFilter.innerHTML = '<option value="">All Teachers</option>' + 
+                    teachersData.map(teacher => `<option value="${teacher.id}">${teacher.name}</option>`).join('');
+            }
+        }
+        
+        function renderNotesGrid() {
+            const grid = document.getElementById('notesGrid');
+            
+            if (filteredNotes.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No notes found</h3>
+                        <p>Try adjusting your search criteria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filteredNotes.map(note => `
+                <div class="note-card">
+                    <div class="note-header">
+                        <h3 class="note-title">${note.title}</h3>
+                        <div class="note-meta">
+                            <span class="note-class">${note.classEntity?.className || 'N/A'}</span>
+                            <span class="note-division">${note.division?.divisionName || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="note-content">
+                        <p class="note-description">${note.description || 'No description available'}</p>
+                        ${note.fileUrl ? `
+                            <div class="note-file">
+                                <i class="fas fa-file-pdf"></i>
+                                <a href="${note.fileUrl}" target="_blank" class="file-link">
+                                    View File
+                                </a>
+                                <button class="btn btn-sm btn-outline" onclick="downloadFile('${note.fileUrl}', '${note.title}')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        ` : '<div class="no-file"><i class="fas fa-file"></i> No file attached</div>'}
+                    </div>
+                    <div class="note-footer">
+                        <div class="note-teacher">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            <span>${note.teacher?.name || 'N/A'}</span>
+                        </div>
+                        <div class="note-date">
+                            <i class="fas fa-calendar"></i>
+                            <span>${formatDate(note.createdAt)}</span>
+                        </div>
+                        <div class="note-actions">
+                            ${hasRole('TEACHER') ? `
+                                <button class="btn btn-sm btn-outline" onclick="viewNote(${note.id})" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="editNote(${note.id})" title="Edit Note">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteNote(${note.id}, '${note.title}')" title="Delete Note">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-primary" onclick="viewNote(${note.id})" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="downloadFile('${note.fileUrl}', '${note.title}')" title="Download">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const classFilter = document.getElementById('classFilter').value;
+            const divisionFilter = document.getElementById('divisionFilter').value;
+            const teacherFilter = document.getElementById('teacherFilter').value;
+            
+            filteredNotes = notesData.filter(note => {
+                const matchesSearch = note.title.toLowerCase().includes(searchTerm) || 
+                                     (note.description && note.description.toLowerCase().includes(searchTerm));
+                const matchesClass = !classFilter || note.classEntity?.id == classFilter;
+                const matchesDivision = !divisionFilter || note.division?.id == divisionFilter;
+                const matchesTeacher = !teacherFilter || note.teacher?.id == teacherFilter;
+                
+                return matchesSearch && matchesClass && matchesDivision && matchesTeacher;
+            });
+            
+            renderNotesGrid();
+        }
+        
+        function handleClassFilter() {
+            handleSearch();
+        }
+        
+        function handleDivisionFilter() {
+            handleSearch();
+        }
+        
+        function handleTeacherFilter() {
+            handleSearch();
+        }
+        
+        function refreshNotes() {
+            loadInitialData();
+            showToast('Notes refreshed', 'success');
+        }
+        
+        function openUploadModal() {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Upload New Note</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="uploadNoteForm" enctype="multipart/form-data">
+                                <div class="form-group">
+                                    <label for="noteTitle">Title *</label>
+                                    <input type="text" id="noteTitle" name="title" required 
+                                           placeholder="Enter note title" maxlength="200">
+                                </div>
+                                <div class="form-group">
+                                    <label for="noteDescription">Description</label>
+                                    <textarea id="noteDescription" name="description" rows="4" 
+                                              placeholder="Enter note description"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="noteFile">File *</label>
+                                    <input type="file" id="noteFile" name="file" required 
+                                           accept=".pdf,.doc,.doc,.docx,.txt,.ppt,.pptx">
+                                    <small class="form-help">Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="classId">Class *</label>
+                                    <select id="classId" name="classId" required class="form-select">
+                                        <option value="">Select Class</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="divisionId">Division *</label>
+                                    <select id="divisionId" name="divisionId" required class="form-select">
+                                        <option value="">Select Division</option>
+                                    </select>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Upload Note</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+            populateModalSelects();
+            document.getElementById('uploadNoteForm').addEventListener('submit', handleUploadNote);
+        }
+        
+        function populateModalSelects() {
+            const classSelect = document.getElementById('classId');
+            const divisionSelect = document.getElementById('divisionId');
+            
+            if (classSelect && classesData) {
+                classSelect.innerHTML = '<option value="">Select Class</option>' + 
+                    classesData.map(cls => `<option value="${cls.id}">${cls.className}</option>`).join('');
+            }
+            
+            if (divisionSelect && divisionsData) {
+                divisionSelect.innerHTML = '<option value="">Select Division</option>' + 
+                    divisionsData.map(div => `<option value="${div.id}">${div.divisionName}</option>`).join('');
+            }
+        }
+        
+        async function handleUploadNote(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            
+            if (!formData.get('title') || !formData.get('classId') || !formData.get('divisionId') || !formData.get('file')) {
+                showToast('Title, Class, Division, and File are required', 'error');
+                return;
+            }
+            
+            const file = formData.get('file');
+            if (file && file.size > 10 * 1024 * 1024) { // 10MB limit
+                showToast('File size must be less than 10MB', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await commonAPI.uploadNote(formData);
+                
+                showToast('Note uploaded successfully', 'success');
+                closeModal();
+                loadInitialData(); // Refresh data
+                
+            } catch (error) {
+                console.error('Upload note error:', error);
+                showToast(error.message || 'Failed to upload note', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function viewNote(noteId) {
+            const note = notesData.find(n => n.id === noteId);
+            if (note) {
+                showViewModal(note);
+            }
+        }
+        
+        function editNote(noteId) {
+            const note = notesData.find(n => n.id === noteId);
+            if (note) {
+                showEditModal(note);
+            }
+        }
+        
+        function showViewModal(note) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Note Details</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="note-detail">
+                                <h3>${note.title}</h3>
+                                <div class="note-meta">
+                                    <span class="note-class">Class: ${note.classEntity?.className || 'N/A'}</span>
+                                    <span class="note-division">Division: ${note.division?.divisionName || 'N/A'}</span>
+                                    <span class="note-teacher">Teacher: ${note.teacher?.name || 'N/A'}</span>
+                                </div>
+                                <div class="note-description">
+                                    <p>${note.description || 'No description available'}</p>
+                                </div>
+                                ${note.fileUrl ? `
+                                    <div class="note-file">
+                                        <i class="fas fa-file-pdf"></i>
+                                        <a href="${note.fileUrl}" target="_blank" class="file-link">
+                                            View File
+                                        </a>
+                                        <button class="btn btn-outline" onclick="downloadFile('${note.fileUrl}', '${note.title}')">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                ` : '<div class="no-file"><i class="fas fa-file"></i> No file attached</div>'}
+                                <div class="note-date">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>Created: ${formatDateTime(note.createdAt)}</span>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline" onclick="closeModal()">Close</button>
+                                ${hasRole('TEACHER') ? `
+                                    <button type="button" class="btn btn-primary" onclick="editNote(${note.id})">Edit</button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+        
+        function showEditModal(note) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Edit Note</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editNoteForm">
+                                <div class="form-group">
+                                    <label for="editTitle">Title *</label>
+                                    <input type="text" id="editTitle" name="title" required 
+                                           value="${note.title}" maxlength="200">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editDescription">Description</label>
+                                    <textarea id="editDescription" name="description" rows="4">${note.description || ''}</textarea>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Update Note</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+            document.getElementById('editNoteForm').addEventListener('submit', (event) => {
+                handleEditNote(event, note.id);
+            });
+        }
+        
+        async function handleEditNote(event, noteId) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const noteData = {
+                title: formData.get('title').trim(),
+                description: formData.get('description').trim()
+            };
+            
+            if (!noteData.title) {
+                showToast('Title is required', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await commonAPI.updateNote(noteId, noteData);
+                
+                showToast('Note updated successfully', 'success');
+                closeModal();
+                loadInitialData(); // Refresh data
+                
+            } catch (error) {
+                console.error('Update note error:', error);
+                showToast(error.message || 'Failed to update note', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function deleteNote(noteId, noteTitle) {
+            showConfirmModal(
+                `Are you sure you want to delete the note "${noteTitle}"? This action cannot be undone.`,
+                () => {
+                    performDelete(noteId);
+                },
+                {
+                    title: 'Delete Note',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    type: 'danger'
+                }
+            );
+        }
+        
+        async function performDelete(noteId) {
+            showLoading();
+            
+            try {
+                await commonAPI.deleteNote(noteId);
+                
+                showToast('Note deleted successfully', 'success');
+                closeModal();
+                loadInitialData(); // Refresh data
+                
+            } catch (error) {
+                console.error('Delete note error:', error);
+                showToast(error.message || 'Failed to delete note', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function downloadFile(fileUrl, title) {
+            const a = document.createElement('a');
+            a.href = fileUrl;
+            a.download = title;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        
+        function closeModal() {
+            document.getElementById('modalContainer').innerHTML = '';
+        }
+        
+        function hideSkeleton() {
+            const skeleton = document.getElementById('skeletonLoader');
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+        }
+        
+        function showConfirmModal(message, onConfirm, options = {}) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">${options.title || 'Confirm Action'}</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="confirm-message">${message}</p>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline" onclick="closeModal()">
+                                    ${options.cancelText || 'Cancel'}
+                                </button>
+                                <button type="button" class="btn ${options.type === 'danger' ? 'btn-danger' : 'btn-primary'}" onclick="onConfirm()">
+                                    ${options.confirmText || 'Confirm'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+    </script>
+</body>
+</html>

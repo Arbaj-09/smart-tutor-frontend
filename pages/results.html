@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/modal.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Quiz Results</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="exportResults()">
+                        <i class="fas fa-download"></i>
+                        Export Results
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Search and Filter -->
+            <section class="search-section">
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search results..." onkeyup="handleSearch()">
+                    </div>
+                    <select id="quizFilter" onchange="handleQuizFilter()" class="form-select">
+                        <option value="">All Quizzes</option>
+                    </select>
+                    <select id="difficultyFilter" onchange="handleDifficultyFilter()" class="form-select">
+                        <option value="">All Levels</option>
+                        <option value="EASY">Easy</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HARD">Hard</option>
+                    </select>
+                    <select id="dateFilter" onchange="handleDateFilter()" class="form-select">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="refreshResults()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Results Summary -->
+            <section class="results-summary">
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="summary-icon bg-primary">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="totalAttempts">0</h3>
+                            <p>Total Attempts</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon bg-success">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="averageScore">0%</h3>
+                            <p>Average Score</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="recentAttempts">0</h3>
+                            <p>Recent Attempts</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon bg-secondary">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="highestScore">0%</h3>
+                            <p>Highest Score</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Results Table -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h2>Quiz Results</h2>
+                    <div class="table-actions">
+                        <button class="btn btn-sm btn-outline" onclick="exportResults()">
+                            <i class="fas fa-download"></i>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>Quiz Title</th>
+                                <th>Student</th>
+                                <th>Score</th>
+                                <th>Total Marks</th>
+                                <th>Percentage</th>
+                                <th>Date</th>
+                                <th>Time Taken</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- Results will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Loading Skeleton -->
+                <div class="skeleton-loader" id="skeletonLoader">
+                    <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script>
+        let resultsData = [];
+        let quizzesData = [];
+        let filteredResults = [];
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isAuthenticated() || !hasRole('STUDENT')) {
+                window.location.href = '/index.html';
+                return;
+            }
+            
+            window.loadSidebar();
+            loadInitialData();
+        });
+        
+        async function loadInitialData() {
+            try {
+                showLoading();
+                hideSkeleton();
+                
+                // Load all data
+                const [resultsResponse, quizzesResponse] = await Promise.all([
+                    commonAPI.getResults(),
+                    commonAPI.getQuizzes()
+                ]);
+                
+                if (resultsResponse) {
+                    resultsData = resultsResponse;
+                    filteredResults = resultsResponse;
+                }
+                
+                if (quizzesResponse) {
+                    quizzesData = quizzesResponse;
+                    populateQuizFilter();
+                    populateDifficultyFilter();
+                }
+                
+                renderResultsTable();
+                updateSummary();
+            } catch (error) {
+                console.error('Load data error:', error);
+                showToast('Failed to load data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function populateQuizFilter() {
+            const quizFilter = document.getElementById('quizFilter');
+            if (quizFilter && quizzesData) {
+                quizFilter.innerHTML = '<option value="">All Quizzes</option>' + 
+                    quizzesData.map(quiz => `<option value="${quiz.id}">${quiz.title}</option>`).join('');
+            }
+        }
+        
+        function populateDifficultyFilter() {
+            const difficultyFilter = document.getElementById('difficultyFilter');
+            if (difficultyFilter) {
+                difficultyFilter.innerHTML = '<option value="">All Levels</option>' + 
+                    '<option value="EASY">Easy</option>' +
+                    '<option value="MEDIUM">Medium</option>' +
+                    '<option value="HARD">Hard</option>';
+            }
+        }
+        
+        function renderResultsTable() {
+            const tbody = document.getElementById('resultsTableBody');
+            
+            if (filteredResults.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="no-data">
+                            <i class="fas fa-inbox"></i>
+                            <p>No quiz results found</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = filteredResults.map(result => `
+                <tr>
+                    <td>
+                        <div class="quiz-info">
+                            <strong>${result.quiz?.title || 'N/A'}</strong>
+                            <small>(${result.quiz?.difficulty || 'N/A'})</small>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="student-info">
+                            <strong>${result.student?.name || 'N/A'}</strong>
+                            <small>(${result.student?.rollNumber || 'N/A'})</small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="score ${getScoreClass(result.percentage)}">${result.score}</span>
+                    </td>
+                    <td>
+                        <span class="total-marks">${result.totalMarks || 0}</span>
+                    </td>
+                    <td>
+                        <span class="percentage ${getScoreClass(result.percentage)}">${result.percentage}%</span>
+                    </td>
+                    <td>${formatDate(result.attemptedAt)}</td>
+                    <td>${formatTime(result.timeTaken || 'N/A')}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline" onclick="viewResult(${result.id})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="retakeQuiz(${result.quiz?.id})" title="Retake Quiz">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function getScoreClass(percentage) {
+            if (percentage >= 90) return 'score-excellent';
+            if (percentage >= 80) return 'score-good';
+            if (percentage >= 70) return 'score-average';
+            if (percentage >= 60) return 'score-fair';
+            if (percentage >= 50) return 'score-poor';
+            return 'score-fail';
+        }
+        
+        function updateSummary() {
+            const totalAttempts = filteredResults.length;
+            const averageScore = totalAttempts > 0 
+                ? (filteredResults.reduce((sum, result) => sum + result.percentage, 0) / totalAttempts).toFixed(1)
+                : 0;
+            const recentAttempts = filteredResults.filter(result => {
+                const attemptDate = new Date(result.attemptedAt);
+                const oneDayAgo = new Date();
+                oneDayAgo.setDate(oneDayAgo.getDate() - 7);
+                return attemptDate >= oneDayAgo;
+            }).length;
+            const highestScore = totalAttempts > 0 
+                ? Math.max(...filteredResults.map(result => result.percentage))
+                : 0;
+            
+            document.getElementById('totalAttempts').textContent = totalAttempts;
+            document.getElementById('averageScore').textContent = averageScore + '%';
+            document.getElementById('recentAttempts').textContent = recentAttempts;
+            document.getElementById('highestScore').textContent = highestScore + '%';
+        }
+        
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const quizFilter = document.getElementById('quizFilter').value;
+            const difficultyFilter = document.getElementById('difficultyFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
+            
+            filteredResults = resultsData.filter(result => {
+                const matchesSearch = result.quiz?.title?.toLowerCase().includes(searchTerm) || 
+                                     result.student?.name?.toLowerCase().includes(searchTerm) ||
+                                     result.student?.rollNumber?.toLowerCase().includes(searchTerm);
+                const matchesQuiz = !quizFilter || result.quiz?.id == quizFilter;
+                const matchesDifficulty = !difficultyFilter || result.quiz?.difficulty == difficultyFilter;
+                const matchesDate = !dateFilter || matchesDateFilter(result.attemptedAt);
+                
+                return matchesSearch && matchesQuiz && matchesDifficulty && matchesDate;
+            });
+            
+            renderResultsTable();
+            updateSummary();
+        }
+        
+        function handleQuizFilter() {
+            handleSearch();
+        }
+        
+        function handleDifficultyFilter() {
+            handleSearch();
+        }
+        
+        function handleDateFilter() {
+            handleSearch();
+        }
+        
+        function refreshResults() {
+            loadInitialData();
+            showToast('Results refreshed', 'success');
+        }
+        
+        function viewResult(resultId) {
+            const result = resultsData.find(r => r.id === resultId);
+            if (result) {
+                showViewModal(result);
+            }
+        }
+        
+        function retakeQuiz(quizId) {
+            const quiz = quizzesData.find(q => q.id === quizId);
+            if (quiz) {
+                window.location.href = 'quiz.html?attempt=' + quizId;
+            }
+        }
+        
+        function showViewModal(result) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Quiz Result Details</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="result-details">
+                                <div class="detail-item">
+                                    <label>Quiz Title:</label>
+                                    <span>${result.quiz?.title || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Student:</label>
+                                    <div class="student-info">
+                                        <strong>${result.student?.name || 'N/A'}</strong>
+                                        <small>(${result.student?.rollNumber || 'N/A'})</small>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Score:</label>
+                                    <span class="score ${getScoreClass(result.percentage)}">${result.score}</span>
+                                    <span class="total-marks">/ ${result.totalMarks || 0}</span>
+                                    <span class="percentage ${getScoreClass(result.percentage)}">${result.percentage}%</span>
+                                </div>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Percentage:</label>
+                                    <span class="score ${getScoreClass(result.percentage)}">${result.percentage}%</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Time Taken:</label>
+                                    <span>${formatTime(result.timeTaken || 'N/A')}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Attempt Date:</label>
+                                    <span>${formatDateTime(result.attemptedAt)}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Difficulty:</label>
+                                    <span class="badge ${getDifficultyClass(result.quiz?.difficulty)}">${result.quiz?.difficulty || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <div class="question-review">
+                                <h4>Question Review</h4>
+                                <div class="question-list" id="questionReview">
+                                    <!-- Questions will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" onclick="closeModal()">Close</button>
+                            <button class="btn btn-primary" onclick="retakeQuiz(${result.quiz?.id})">Retake Quiz</button>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+            
+            // Load question details
+            loadQuestionReview(result);
+        }
+        
+        async function loadQuestionReview(result) {
+            try {
+                showLoading();
+                
+                const response = await commonAPI.getQuizzes({ id: result.quiz.id });
+                const quizWithQuestions = response.find(q => q.id === result.quiz.id);
+                
+                if (quizWithQuestions && quizWithQuestions.questions) {
+                    const questionsContainer = document.getElementById('questionReview');
+                    questionsContainer.innerHTML = quizWithQuestions.questions.map((question, index) => `
+                        <div class="question-review-item">
+                            <div class="question-number">Question ${index + 1}</div>
+                            <div class="question-content">
+                                <p>${question.questionText}</p>
+                                <div class="correct-answer">
+                                    <strong>Correct: ${question.correctOption}</strong>
+                                </div>
+                                <div class="student-answer">
+                                    <strong>Your Answer: ${result.answers?.[question.id] || 'Not answered'}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                hideLoading();
+            } catch (error) {
+                console.error('Load question review error:', error);
+                showToast(error.message || 'Failed to load question review', 'error');
+            }
+        }
+        
+        function exportResults() {
+            const csvContent = [
+                ['Quiz Title', 'Student Name', 'Roll Number', 'Score', 'Total Marks', 'Percentage', 'Date', 'Time Taken'],
+                ...filteredResults.map(result => [
+                    result.quiz?.title || 'N/A',
+                    result.student?.name || 'N/A',
+                    result.student?.rollNumber || 'N/A',
+                    result.score || 'N/A',
+                    result.totalMarks || 'N/A',
+                    result.percentage || 'N/A',
+                    formatDate(result.attemptedAt),
+                    formatTime(result.timeTaken || 'N/A')
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `quiz-results-${formatDate(new Date())}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Results exported successfully', 'success');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalContainer').innerHTML = '';
+        }
+        
+        function hideSkeleton() {
+            const skeleton = document.getElementById('skeletonLoader');
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+        }
+        
+        function showConfirmModal(message, onConfirm, options = {}) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">${options.title || 'Confirm Action'}</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="confirm-message">${message}</p>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline" onclick="closeModal()">
+                                    ${options.cancelText || 'Cancel'}
+                                </button>
+                                <button type="button" class="btn ${options.type === 'danger' ? 'btn-danger' : 'btn-primary'}" onclick="onConfirm()">
+                                    ${options.confirmText || 'Confirm'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+    </script>
+</body>
+</html>

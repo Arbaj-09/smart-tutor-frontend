@@ -1,0 +1,141 @@
+<!-- Sidebar Component -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <i class="fas fa-graduation-cap"></i>
+            <span class="sidebar-title">SmartTutor</span>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+    
+    <nav class="sidebar-nav">
+        <ul class="nav-list">
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a href="/dashboard/hod-dashboard.html" class="nav-link" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+            </li>
+            
+            <!-- HOD Menu Items -->
+            <div id="hodMenu" class="role-menu">
+                <li class="nav-item">
+                    <a href="/pages/manage-classes.html" class="nav-link" data-page="manage-classes">
+                        <i class="fas fa-chalkboard"></i>
+                        <span class="nav-text">Manage Classes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/manage-divisions.html" class="nav-link" data-page="manage-divisions">
+                        <i class="fas fa-object-group"></i>
+                        <span class="nav-text">Manage Divisions</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/manage-teachers.html" class="nav-link" data-page="manage-teachers">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span class="nav-text">Manage Teachers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/manage-students.html" class="nav-link" data-page="manage-students">
+                        <i class="fas fa-users"></i>
+                        <span class="nav-text">Manage Students</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/activity-log.html" class="nav-link" data-page="activity-log">
+                        <i class="fas fa-history"></i>
+                        <span class="nav-text">Activity Log</span>
+                    </a>
+                </li>
+            </div>
+            
+            <!-- Teacher Menu Items -->
+            <div id="teacherMenu" class="role-menu">
+                <li class="nav-item">
+                    <a href="/pages/manage-students.html" class="nav-link" data-page="manage-students">
+                        <i class="fas fa-users"></i>
+                        <span class="nav-text">Manage Students</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/attendance.html" class="nav-link" data-page="attendance">
+                        <i class="fas fa-calendar-check"></i>
+                        <span class="nav-text">Attendance</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/notes.html" class="nav-link" data-page="notes">
+                        <i class="fas fa-book"></i>
+                        <span class="nav-text">Notes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/quiz.html" class="nav-link" data-page="quiz">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="nav-text">Quiz</span>
+                    </a>
+                </li>
+            </div>
+            
+            <!-- Student Menu Items -->
+            <div id="studentMenu" class="role-menu">
+                <li class="nav-item">
+                    <a href="/pages/notes.html" class="nav-link" data-page="notes">
+                        <i class="fas fa-book"></i>
+                        <span class="nav-text">Notes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/quiz.html" class="nav-link" data-page="quiz">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="nav-text">Quiz</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/results.html" class="nav-link" data-page="results">
+                        <i class="fas fa-chart-line"></i>
+                        <span class="nav-text">Results</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pages/attendance.html" class="nav-link" data-page="attendance">
+                        <i class="fas fa-calendar-check"></i>
+                        <span class="nav-text">Attendance</span>
+                    </a>
+                </li>
+            </div>
+            
+            <!-- Common Menu Items -->
+            <li class="nav-item">
+                <a href="/pages/notifications.html" class="nav-link" data-page="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="nav-text">Notifications</span>
+                    <span class="nav-badge" id="notificationBadge">0</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    
+    <div class="sidebar-footer">
+        <div class="user-profile">
+            <div class="user-avatar">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="user-info">
+                <div class="user-name" id="userName">John Doe</div>
+                <div class="user-role" id="userRole">Role</div>
+            </div>
+            <button class="logout-btn" id="logoutBtn" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- Overlay for mobile sidebar -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

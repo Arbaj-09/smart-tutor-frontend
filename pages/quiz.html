@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Management - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/modal.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Quiz Management</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openCreateQuizModal()">
+                        <i class="fas fa-plus"></i>
+                        Create Quiz
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Search and Filter -->
+            <section class="search-section">
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search quizzes..." onkeyup="handleSearch()">
+                    </div>
+                    <select id="classFilter" onchange="handleClassFilter()" class="form-select">
+                        <option value="">All Classes</option>
+                    </select>
+                    <select id="divisionFilter" onchange="handleDivisionFilter()" class="form-select">
+                        <option value="">All Divisions</option>
+                    </select>
+                    <select id="difficultyFilter" onchange="handleDifficultyFilter()" class="form-select">
+                        <option value="">All Levels</option>
+                        <option value="EASY">Easy</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HARD">Hard</option>
+                    </select>
+                    <select id="statusFilter" onchange="handleStatusFilter()" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="PUBLISHED">Published</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="ARCHIVED">Archived</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="refreshQuizzes()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Quiz Grid -->
+            <section class="quiz-section">
+                <div class="quiz-grid" id="quizGrid">
+                    <!-- Quizzes will be loaded here -->
+                </div>
+                
+                <!-- Loading Skeleton -->
+                <div class="skeleton-loader" id="skeletonLoader">
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Quiz Attempt Modal -->
+    <div id="quizAttemptModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Quiz Attempt</h3>
+                <button class="modal-close" onclick="closeQuizModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="quiz-info">
+                    <h4 id="quizTitle">Quiz Title</h4>
+                    <div class="quiz-meta">
+                        <span class="quiz-difficulty" id="quizDifficulty">Difficulty</span>
+                        <span class="quiz-time" id="quizTime">Time Limit</span>
+                    </div>
+                </div>
+                <div class="quiz-timer">
+                    <div class="timer-display" id="timerDisplay">00:00</div>
+                    <div class="timer-progress" id="timerProgress"></div>
+                </div>
+                <div class="quiz-questions" id="quizQuestions">
+                    <!-- Questions will be loaded here -->
+                </div>
+                <div class="quiz-actions">
+                    <button class="btn btn-outline" onclick="closeQuizModal()">Cancel</button>
+                    <button class="btn btn-primary" id="submitQuizBtn" onclick="submitQuiz()">Submit Quiz</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script>
+        let quizzesData = [];
+        let classesData = [];
+        let divisionsData = [];
+        let filteredQuizzes = [];
+        let currentQuiz = null;
+        let quizTimer = null;
+        let timerInterval = null;
+        let quizAnswers = {};
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isAuthenticated() || (!hasRole('TEACHER') && !hasRole('STUDENT'))) {
+                window.location.href = '/index.html';
+                return;
+            }
+            
+            window.loadSidebar();
+            loadInitialData();
+        });
+        
+        async function loadInitialData() {
+            try {
+                showLoading();
+                hideSkeleton();
+                
+                // Load all data
+                const [quizzesResponse, classesResponse, divisionsResponse] = await Promise.all([
+                    commonAPI.getQuizzes(),
+                    commonAPI.getClasses(),
+                    commonAPI.getDivisions()
+                ]);
+                
+                if (quizzesResponse) {
+                    quizzesData = quizzesResponse;
+                    filteredQuizzes = quizzesResponse;
+                }
+                
+                if (classesResponse) {
+                    classesData = classesResponse;
+                    populateClassFilter();
+                }
+                
+                if (divisionsResponse) {
+                    divisionsData = divisionsResponse;
+                    populateDivisionFilter();
+                }
+                
+                renderQuizGrid();
+            } catch (error) {
+                console.error('Load data error:', error);
+                showToast('Failed to load data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function populateClassFilter() {
+            const classFilter = document.getElementById('classFilter');
+            if (classFilter && classesData) {
+                classFilter.innerHTML = '<option value="">All Classes</option>' + 
+                    classesData.map(cls => `<option value="${cls.id}">${cls.className}</option>`).join('');
+            }
+        }
+        
+        function populateDivisionFilter() {
+            const divisionFilter = document.getElementById('divisionFilter');
+            if (divisionFilter && divisionsData) {
+                divisionFilter.innerHTML = '<option value="">All Divisions</option>' + 
+                    divisionsData.map(div => `<option value="${div.id}">${div.divisionName}</option>`).join('');
+            }
+        }
+        
+        function renderQuizGrid() {
+            const grid = document.getElementById('quizGrid');
+            
+            if (filteredQuizzes.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No quizzes found</h3>
+                        <p>Try adjusting your search criteria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filteredQuizzes.map(quiz => `
+                <div class="quiz-card">
+                    <div class="quiz-header">
+                        <h3 class="quiz-title">${quiz.title}</h3>
+                        <div class="quiz-meta">
+                            <span class="quiz-difficulty badge ${getDifficultyClass(quiz.difficulty)}">${quiz.difficulty}</span>
+                            <span class="quiz-status badge ${getStatusClass(quiz.status)}">${quiz.status}</span>
+                        </div>
+                    </div>
+                    <div class="quiz-content">
+                        <p class="quiz-description">${quiz.description || 'No description available'}</p>
+                        <div class="quiz-details">
+                            <div class="detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span>Time Limit: ${quiz.timeLimit || 'N/A'} minutes</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-question-circle"></i>
+                                <span>Questions: ${quiz.questionCount || 0}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>Created: ${formatDate(quiz.createdAt)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quiz-footer">
+                        <div class="quiz-teacher">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            <span>${quiz.teacher?.name || 'N/A'}</span>
+                        </div>
+                        <div class="quiz-actions">
+                            ${hasRole('TEACHER') ? `
+                                <button class="btn btn-sm btn-outline" onclick="viewQuiz(${quiz.id})" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="editQuiz(${quiz.id})" title="Edit Quiz">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="publishQuiz(${quiz.id})" title="Publish Quiz">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="attemptQuiz(${quiz.id})" title="Attempt Quiz">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteQuiz(${quiz.id}, '${quiz.title}')" title="Delete Quiz">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-primary" onclick="attemptQuiz(${quiz.id})" title="Attempt Quiz">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="viewQuiz(${quiz.id})" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getDifficultyClass(difficulty) {
+            const classes = {
+                'EASY': 'badge-success',
+                'MEDIUM': 'badge-warning',
+                'HARD': 'badge-danger'
+            };
+            return classes[difficulty] || 'badge-secondary';
+        }
+        
+        function getStatusClass(status) {
+            const classes = {
+                'PUBLISHED': 'badge-success',
+                'DRAFT': 'badge-secondary',
+                'ARCHIVED': 'badge-dark'
+            };
+            return classes[status] || 'badge-secondary';
+        }
+        
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const classFilter = document.getElementById('classFilter').value;
+            const divisionFilter = document.getElementById('divisionFilter').value;
+            const difficultyFilter = document.getElementById('difficultyFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            filteredQuizzes = quizzesData.filter(quiz => {
+                const matchesSearch = quiz.title.toLowerCase().includes(searchTerm) || 
+                                     (quiz.description && quiz.description.toLowerCase().includes(searchTerm));
+                const matchesClass = !classFilter || quiz.classEntity?.id == classFilter;
+                const matchesDivision = !divisionFilter || quiz.division?.id == divisionFilter;
+                const matchesDifficulty = !difficultyFilter || quiz.difficulty == difficultyFilter;
+                const matchesStatus = !statusFilter || quiz.status == statusFilter;
+                
+                return matchesSearch && matchesClass && matchesDivision && matchesDifficulty && matchesStatus;
+            });
+            
+            renderQuizGrid();
+        }
+        
+        function handleClassFilter() {
+            handleSearch();
+        }
+        
+        function handleDivisionFilter() {
+            handleSearch();
+        }
+        
+        function handleDifficultyFilter() {
+            handleSearch();
+        }
+        
+        function handleStatusFilter() {
+            handleSearch();
+        }
+        
+        function refreshQuizzes() {
+            loadInitialData();
+            showToast('Quizzes refreshed', 'success');
+        }
+        
+        function openCreateQuizModal() {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Create New Quiz</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="createQuizForm">
+                                <div class="form-group">
+                                    <label for="quizTitle">Title *</label>
+                                    <input type="text" id="quizTitle" name="title" required 
+                                           placeholder="Enter quiz title" maxlength="200">
+                                </div>
+                                <div class="form-group">
+                                    <label for="quizDescription">Description</label>
+                                    <textarea id="quizDescription" name="description" rows="4" 
+                                              placeholder="Enter quiz description"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="timeLimit">Time Limit (minutes) *</label>
+                                    <input type="number" id="timeLimit" name="timeLimit" required 
+                                           min="1" max="180" placeholder="Enter time limit">
+                                </div>
+                                <div class="form-group">
+                                    <label for="difficulty">Difficulty *</label>
+                                    <select id="difficulty" name="difficulty" required class="form-select">
+                                        <option value="">Select Difficulty</option>
+                                        <option value="EASY">Easy</option>
+                                        <option value="MEDIUM">Medium</option>
+                                        <option value="HARD">Hard</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="classId">Class *</label>
+                                    <select id="classId" name="classId" required class="form-select">
+                                        <option value="">Select Class</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="divisionId">Division *</label>
+                                    <select id="divisionId" name="divisionId" required class="form-select">
+                                        <option value="">Select Division</option>
+                                    </select>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Create Quiz</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+            populateModalSelects();
+            document.getElementById('createQuizForm').addEventListener('submit', handleCreateQuiz);
+        }
+        
+        function populateModalSelects() {
+            const classSelect = document.getElementById('classId');
+            const divisionSelect = document.getElementById('divisionId');
+            
+            if (classSelect && classesData) {
+                classSelect.innerHTML = '<option value="">Select Class</option>' + 
+                    classesData.map(cls => `<option value="${cls.id}">${cls.className}</option>`).join('');
+            }
+            
+            if (divisionSelect && divisionsData) {
+                divisionSelect.innerHTML = '<option value="">Select Division</option>' + 
+                    divisionsData.map(div => `<option value="${div.id}">${div.divisionName}</option>`).join('');
+            }
+        }
+        
+        async function handleCreateQuiz(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const quizData = {
+                title: formData.get('title').trim(),
+                description: formData.get('description').trim(),
+                timeLimit: parseInt(formData.get('timeLimit')),
+                difficulty: formData.get('difficulty'),
+                classId: parseInt(formData.get('classId')),
+                divisionId: parseInt(formData.get('divisionId'))
+            };
+            
+            if (!quizData.title || !quizData.timeLimit || !quizData.difficulty || !quizData.classId || !quizData.divisionId) {
+                showToast('All fields are required', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await commonAPI.createQuiz(quizData);
+                
+                showToast('Quiz created successfully', 'success');
+                closeModal();
+                loadInitialData(); // Refresh data
+                
+            } catch (error) {
+                console.error('Create quiz error:', error);
+                showToast(error.message || 'Failed to create quiz', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function viewQuiz(quizId) {
+            const quiz = quizzesData.find(q => q.id === quizId);
+            if (quiz) {
+                showViewModal(quiz);
+            }
+        }
+        
+        function editQuiz(quizId) {
+            const quiz = quizzesData.find(q => q.id === quizId);
+            if (quiz) {
+                showEditModal(quiz);
+            }
+        }
+        
+        function publishQuiz(quizId) {
+            showConfirmModal(
+                `Are you sure you want to publish the quiz "${quiz.title}"? Students will be able to attempt it.`,
+                () => {
+                    performPublish(quizId);
+                },
+                {
+                    title: 'Publish Quiz',
+                    confirmText: 'Publish',
+                    cancelText: 'Cancel',
+                    type: 'success'
+                }
+            );
+        }
+        
+        function attemptQuiz(quizId) {
+            const quiz = quizzesData.find(q => q.id === quizId);
+            if (quiz) {
+                startQuizAttempt(quiz);
+            }
+        }
+        
+        function startQuizAttempt(quiz) {
+            currentQuiz = quiz;
+            quizAnswers = {};
+            
+            // Show quiz attempt modal
+            const modal = document.getElementById('quizAttemptModal');
+            modal.classList.remove('hidden');
+            
+            // Update modal content
+            document.getElementById('quizTitle').textContent = quiz.title;
+            document.getElementById('quizDifficulty').textContent = quiz.difficulty;
+            document.getElementById('quizTime').textContent = `${quiz.timeLimit} minutes`;
+            
+            // Load questions
+            loadQuizQuestions(quiz);
+            
+            // Start timer
+            startTimer(quiz.timeLimit * 60);
+            
+            // Show modal
+            modal.classList.add('active');
+        }
+        
+        async function loadQuizQuestions(quiz) {
+            try {
+                showLoading();
+                
+                const response = await commonAPI.getQuizzes({ id: quiz.id });
+                const quizWithQuestions = response.find(q => q.id === quiz.id);
+                
+                if (quizWithQuestions && quizWithQuestions.questions) {
+                    const questionsContainer = document.getElementById('quizQuestions');
+                    questionsContainer.innerHTML = quizWithQuestions.questions.map((question, index) => `
+                        <div class="question-item">
+                            <div class="question-number">Question ${index + 1}</div>
+                            <div class="question-content">
+                                <p>${question.questionText}</p>
+                            </div>
+                            <div class="question-options">
+                                <div class="option">
+                                    <input type="radio" name="question-${question.id}" value="A" onchange="selectAnswer(${question.id}, 'A')">
+                                    <span>A. ${question.optionA}</span>
+                                </div>
+                                </div>
+                                <div class="option">
+                                    <input type="radio" name="question-${question.id}" value="B" onchange="selectAnswer(${question.id}, 'B')">
+                                    <span>B. ${question.optionB}</span>
+                                </div>
+                                </div>
+                                <div class="option">
+                                    <input type="radio" name="question-${question.id}" value="C" onchange="selectAnswer(${question.id}, 'C')">
+                                    <span>C. ${question.optionC}</span>
+                                </div>
+                                </div>
+                                <div class="option">
+                                    <input type="radio" name="question-${question.id}" value="D" onchange="selectAnswer(${question.id}, 'D')">
+                                    <span>D. ${question.optionD}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                hideLoading();
+            } catch (error) {
+                console.error('Load quiz questions error:', error);
+                showToast(error.message || 'Failed to load quiz questions', 'error');
+            }
+        }
+        
+        function selectAnswer(questionId, answer) {
+            quizAnswers[questionId] = answer;
+        }
+        
+        function startTimer(timeLimit) {
+            let timeRemaining = timeLimit;
+            
+            if (quizTimer) {
+                clearInterval(quizTimer);
+            }
+            
+            quizTimer = setInterval(() => {
+                timeRemaining--;
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(quizTimer);
+                    submitQuiz();
+                }
+                
+                updateTimerDisplay(timeRemaining);
+            }, 1000);
+        }
+        
+        function updateTimerDisplay(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            
+            document.getElementById('timerDisplay').textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            
+            const progress = ((timeLimit - seconds) / timeLimit) * 100;
+            document.getElementById('timerProgress').style.width = `${progress}%`;
+        }
+        
+        function submitQuiz() {
+            if (Object.keys(quizAnswers).length === 0) {
+                showToast('Please answer at least one question', 'warning');
+                return;
+            }
+            
+            clearInterval(quizTimer);
+            document.getElementById('submitQuizBtn').disabled = true;
+            
+            showLoading();
+            
+            try {
+                const response = await commonAPI.submitQuiz(currentQuiz.id, {
+                    answers: quizAnswers
+                });
+                
+                showToast('Quiz submitted successfully', 'success');
+                closeQuizModal();
+                
+                // Show result
+                setTimeout(() => {
+                    showQuizResult(response);
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Submit quiz error:', error);
+                showToast(error.message || 'Failed to submit quiz', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function showQuizResult(result) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Quiz Result</h3>
+                            <button class="modal-close" onclick="closeQuizModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="result-summary">
+                                <h4>${currentQuiz.title}</h4>
+                                <div class="result-score">
+                                    <span class="score">${result.score}</span>
+                                    <span class="total">/ ${result.totalMarks}</span>
+                                </div>
+                                <div class="result-percentage">
+                                    <span>${((result.score / result.totalMarks) * 100).toFixed(1)}%</span>
+                                </div>
+                            </div>
+                            <div class="result-message">
+                                <p>${result.score >= result.totalMarks * 0.6 ? 'Congratulations! 🎉' : result.score >= result.totalMarks * 0.4 ? 'Good job! 👍' : result.score >= result.totalMarks * 0.2 ? 'Keep practicing! 📚' : 'Keep trying! 💪'}</p>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline" onclick="closeQuizModal()">Close</button>
+                                <button type="button" class="btn btn-primary" onclick="attemptQuiz(${currentQuiz.id})">Retake Quiz</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+        
+        function deleteQuiz(quizId, quizTitle) {
+            showConfirmModal(
+                `Are you sure you want to delete the quiz "${quizTitle}"? This action cannot be undone.`,
+                () => {
+                    performDelete(quizId);
+                },
+                {
+                    title: 'Delete Quiz',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    type: 'danger'
+                }
+            );
+        }
+        
+        async function performDelete(quizId) {
+            showLoading();
+            
+            try {
+                await commonAPI.deleteQuiz(quizId);
+                
+                showToast('Quiz deleted successfully', 'success');
+                closeModal();
+                loadInitialData(); // Refresh data
+                
+            } catch (error) {
+                console.error('Delete quiz error:', error);
+                showToast(error.message || 'Failed to delete quiz', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function closeQuizModal() {
+            const modal = document.getElementById('quizAttemptModal');
+            modal.classList.add('hidden');
+            
+            // Reset quiz state
+            currentQuiz = null;
+            quizAnswers = {};
+            if (quizTimer) {
+                clearInterval(quizTimer);
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('modalContainer').innerHTML = '';
+        }
+        
+        function hideSkeleton() {
+            const skeleton = document.getElementById('skeletonLoader');
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+        }
+        
+        function showConfirmModal(message, onConfirm, options = {}) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">${options.title || 'Confirm Action'}</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="confirm-message">${message}</p>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline" onclick="closeModal()">
+                                    ${options.cancelText || 'Cancel'}
+                                </button>
+                                <button type="button" class="btn ${options.type === 'danger' ? 'btn-danger' : 'btn-primary'}" onclick="onConfirm()">
+                                    ${options.confirmText || 'Confirm'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+    </script>
+</body>
+</html>

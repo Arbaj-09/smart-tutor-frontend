@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Teacher Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline btn-sm" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="markAttendance()">
+                        <i class="fas fa-calendar-check"></i>
+                        Mark Attendance
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <!-- Stats Cards -->
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="totalStudents">0</h3>
+                            <p class="stat-label">Total Students</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="todayAttendance">0%</h3>
+                            <p class="stat-label">Today's Attendance</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-secondary">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="averageQuizScore">0</h3>
+                            <p class="stat-label">Average Quiz Score</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="totalNotes">0</h3>
+                            <p class="stat-label">Total Notes</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Quick Actions -->
+            <section class="quick-actions-section">
+                <div class="section-header">
+                    <h2>Quick Actions</h2>
+                </div>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-card" onclick="navigateToStudents()">
+                        <div class="action-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3>Manage Students</h3>
+                        <p>View and manage assigned students</p>
+                    </button>
+                    
+                    <button class="quick-action-card" onclick="navigateToAttendance()">
+                        <div class="action-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <h3>Mark Attendance</h3>
+                        <p>Record student attendance</p>
+                    </button>
+                    
+                    <button class="quick-action-card" onclick="navigateToNotes()">
+                        <div class="action-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <h3>Upload Notes</h3>
+                        <p>Share study materials</p>
+                    </button>
+                    
+                    <button class="quick-action-card" onclick="navigateToQuiz()">
+                        <div class="action-icon">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <h3>Create Quiz</h3>
+                        <p>Assess student knowledge</p>
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Recent Activities -->
+            <section class="recent-activities-section">
+                <div class="section-header">
+                    <h2>Recent Activities</h2>
+                </div>
+                <div class="activities-list" id="recentActivities">
+                    <!-- Activities will be loaded here -->
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script>
+        // Initialize Teacher Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isAuthenticated() || !hasRole('TEACHER')) {
+                window.location.href = '/index.html';
+                return;
+            }
+            
+            window.loadSidebar();
+            loadDashboardData();
+        });
+        
+        async function loadDashboardData() {
+            try {
+                showLoading();
+                const response = await teacherAPI.getDashboardStats();
+                
+                if (response) {
+                    updateStatsCards(response);
+                }
+            } catch (error) {
+                console.error('Dashboard data error:', error);
+                showToast('Failed to load dashboard data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function updateStatsCards(data) {
+            animateNumber('totalStudents', data.totalStudents || 0);
+            animateNumber('todayAttendance', data.todayAttendance || 0);
+            animateNumber('averageQuizScore', data.averageQuizScore || 0);
+            animateNumber('totalNotes', data.totalNotes || 0);
+        }
+        
+        function animateNumber(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            const startValue = 0;
+            const duration = 1000;
+            const startTime = performance.now();
+            
+            function updateNumber(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
+                element.textContent = currentValue.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                }
+            }
+            
+            requestAnimationFrame(updateNumber);
+        }
+        
+        function refreshDashboard() {
+            loadDashboardData();
+            showToast('Dashboard refreshed', 'success');
+        }
+        
+        function markAttendance() {
+            navigateToAttendance();
+        }
+        
+        function navigateToStudents() {
+            window.location.href = '../pages/manage-students.html';
+        }
+        
+        function navigateToAttendance() {
+            window.location.href = '../pages/attendance.html';
+        }
+        
+        function navigateToNotes() {
+            window.location.href = '../pages/notes.html';
+        }
+        
+        function navigateToQuiz() {
+            window.location.href = '../pages/quiz.html';
+        }
+        
+        function setupSidebarEvents() {
+            // Mobile menu toggle
+            const mobileToggle = document.getElementById('mobileMenuToggle');
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', () => {
+                    const sidebar = document.querySelector('.sidebar');
+                    sidebar.classList.toggle('active');
+                });
+            }
+            
+            // Logout
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    try {
+                        await authAPI.logout();
+                        sessionStorage.removeItem('user');
+                        window.location.href = '../index.html';
+                    } catch (error) {
+                        console.error('Logout error:', error);
+                        showToast('Logout failed', 'error');
+                    }
+                });
+            }
+        }
+        
+        function updateUserInfo(user) {
+            const userName = document.getElementById('userName');
+            const userRole = document.getElementById('userRole');
+            
+            if (userName) userName.textContent = user.name;
+            if (userRole) userRole.textContent = user.role;
+        }
+    </script>
+</body>
+</html>

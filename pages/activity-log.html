@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Log - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/modal.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Activity Log</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="window.activityLogApp.exportActivityLog()">
+                        <i class="fas fa-download"></i>
+                        Export Log
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Content -->
+        <section class="content">
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="searchInput">Search</label>
+                    <input type="text" id="searchInput" class="filter-control" placeholder="Search activities...">
+                </div>
+                <div class="filter-group">
+                    <label for="roleFilter">Role</label>
+                    <select id="roleFilter" class="filter-control form-select">
+                        <option value="">All Roles</option>
+                        <option value="HOD">HOD</option>
+                        <option value="TEACHER">Teacher</option>
+                        <option value="STUDENT">Student</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="actionFilter">Action</label>
+                    <select id="actionFilter" class="filter-control form-select">
+                        <option value="">All Actions</option>
+                        <option value="CREATE_CLASS">Create Class</option>
+                        <option value="CREATE_DIVISION">Create Division</option>
+                        <option value="CREATE_TEACHER">Create Teacher</option>
+                        <option value="CREATE_STUDENT">Create Student</option>
+                        <option value="UPDATE_TEACHER">Update Teacher</option>
+                        <option value="UPDATE_STUDENT">Update Student</option>
+                        <option value="DELETE_TEACHER">Delete Teacher</option>
+                        <option value="DELETE_STUDENT">Delete Student</option>
+                        <option value="MARK_ATTENDANCE">Mark Attendance</option>
+                        <option value="UPLOAD_NOTES">Upload Notes</option>
+                        <option value="CREATE_QUIZ">Create Quiz</option>
+                        <option value="ATTEMPT_QUIZ">Attempt Quiz</option>
+                        <option value="LOGIN">Login</option>
+                        <option value="LOGOUT">Logout</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="startDate">From:</label>
+                    <input type="date" id="startDate" class="filter-control">
+                </div>
+                <div class="filter-group">
+                    <label for="endDate">To:</label>
+                    <input type="date" id="endDate" class="filter-control">
+                </div>
+                <button class="btn btn-primary" onclick="window.activityLogApp.applyFilters()">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+                <button class="btn btn-outline" onclick="window.activityLogApp.resetFilters()">
+                    <i class="fas fa-times"></i> Reset
+                </button>
+            </div>
+
+            <!-- Table Container -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h2 class="table-title">Activity Logs</h2>
+                    <div class="table-actions">
+                        <button class="btn btn-outline" onclick="window.activityLogApp.refreshData()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Skeleton Loader -->
+                <div class="skeleton-loader" id="skeletonLoader">
+                    <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                    </div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-wrapper" id="tableWrapper" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityLogTableBody">
+                            <!-- Rows will be inserted here -->
+                        </tbody>
+                    </table>
+
+                    <!-- Empty State -->
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <div class="empty-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <h3 class="empty-title">No Activity Found</h3>
+                        <p class="empty-subtitle">Try adjusting your filters or check back later for new activities.</p>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <div class="pagination-left">
+                        <span id="paginationInfo">Showing 0 of 0 activities</span>
+                    </div>
+                    <div class="pagination-right">
+                        <button class="pagination-btn" id="prevPageBtn" onclick="window.activityLogApp.prevPage()" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="window.activityLogApp.nextPage()" disabled>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/modal.js"></script>
+    <script src="../js/toast.js"></script>
+    <script src="../js/pagination.js"></script>
+    <script src="../js/search.js"></script>
+    <script src="../js/activity-log.js"></script>
+    
+    <script>
+        // Initialize page with sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.loadSidebar) {
+                window.loadSidebar();
+            }
+        });
+    </script>
+</body>
+</html>

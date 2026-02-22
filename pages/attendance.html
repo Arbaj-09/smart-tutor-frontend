@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Management - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/modal.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Attendance Management</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="markAllPresent()">
+                        <i class="fas fa-check-circle"></i>
+                        Mark All Present
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Attendance Controls -->
+            <section class="attendance-controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label for="attendanceDate">Date:</label>
+                        <input type="date" id="attendanceDate" class="form-control" 
+                               value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div class="control-group">
+                        <label for="classFilter">Class:</label>
+                        <select id="classFilter" onchange="handleClassFilter()" class="form-select">
+                            <option value="">All Classes</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="divisionFilter">Division:</label>
+                        <select id="divisionFilter" onchange="handleDivisionFilter()" class="form-select">
+                            <option value="">All Divisions</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline" onclick="loadAttendance()">
+                        <i class="fas fa-search"></i>
+                        Load Attendance
+                    </button>
+                    <button class="btn btn-primary" onclick="saveAttendance()">
+                        <i class="fas fa-save"></i>
+                        Save Attendance
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Attendance Summary -->
+            <section class="attendance-summary">
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="summary-icon bg-success">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="presentCount">0</h3>
+                            <p>Present</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon bg-danger">
+                            <i class="fas fa-user-times"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="absentCount">0</h3>
+                            <p>Absent</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon bg-primary">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="attendancePercentage">0%</h3>
+                            <p>Attendance Rate</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon bg-secondary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 id="totalStudents">0</h3>
+                            <p>Total Students</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Students Table -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h2>Students Attendance</h2>
+                    <div class="table-actions">
+                        <button class="btn btn-sm btn-outline" onclick="exportAttendance()">
+                            <i class="fas fa-download"></i>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                </th>
+                                <th>Roll Number</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                            <!-- Students will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Loading Skeleton -->
+                <div class="skeleton-loader" id="skeletonLoader">
+                    <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script>
+        let attendanceData = [];
+        let classesData = [];
+        let divisionsData = [];
+        let studentsData = [];
+        let filteredStudents = [];
+        let attendanceRecords = {};
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isAuthenticated() || !hasRole('TEACHER')) {
+                window.location.href = '/index.html';
+                return;
+            }
+            
+            window.loadSidebar();
+            loadInitialData();
+        });
+        
+        async function loadInitialData() {
+            try {
+                showLoading();
+                hideSkeleton();
+                
+                // Load all data
+                const [studentsResponse, classesResponse, divisionsResponse] = await Promise.all([
+                    teacherAPI.getAssignedStudents(),
+                    commonAPI.getClasses(),
+                    commonAPI.getDivisions()
+                ]);
+                
+                if (studentsResponse) {
+                    studentsData = studentsResponse;
+                    filteredStudents = studentsResponse;
+                    // Initialize attendance records
+                    studentsResponse.forEach(student => {
+                        attendanceRecords[student.id] = {
+                            status: 'ABSENT',
+                            marked: false
+                        };
+                    });
+                }
+                
+                if (classesResponse) {
+                    classesData = classesResponse;
+                    populateClassFilter();
+                }
+                
+                if (divisionsResponse) {
+                    divisionsData = divisionsResponse;
+                    populateDivisionFilter();
+                }
+                
+                renderAttendanceTable();
+                updateSummary();
+            } catch (error) {
+                console.error('Load data error:', error);
+                showToast('Failed to load data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function populateClassFilter() {
+            const classFilter = document.getElementById('classFilter');
+            if (classFilter && classesData) {
+                classFilter.innerHTML = '<option value="">All Classes</option>' + 
+                    classesData.map(cls => `<option value="${cls.id}">${cls.className}</option>`).join('');
+            }
+        }
+        
+        function populateDivisionFilter() {
+            const divisionFilter = document.getElementById('divisionFilter');
+            if (divisionFilter && divisionsData) {
+                divisionFilter.innerHTML = '<option value="">All Divisions</option>' + 
+                    divisionsData.map(div => `<option value="${div.id}">${div.divisionName}</option>`).join('');
+            }
+        }
+        
+        function renderAttendanceTable() {
+            const tbody = document.getElementById('attendanceTableBody');
+            
+            if (filteredStudents.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="no-data">
+                            <i class="fas fa-inbox"></i>
+                            <p>No students found</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = filteredStudents.map(student => `
+                <tr>
+                    <td>
+                        <input type="checkbox" id="student-${student.id}" 
+                               onchange="toggleAttendance(${student.id})"
+                               ${attendanceRecords[student.id]?.marked ? 'checked' : ''}>
+                    </td>
+                    <td>${student.rollNumber || 'N/A'}</td>
+                    <td>
+                        <div class="user-info">
+                            <strong>${student.name}</strong>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="mailto:${student.email}" class="email-link">${student.email}</a>
+                    </td>
+                    <td>
+                        <span class="attendance-status ${attendanceRecords[student.id]?.status === 'PRESENT' ? 'status-present' : 'status-absent'}">
+                            <i class="fas ${attendanceRecords[student.id]?.status === 'PRESENT' ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                            ${attendanceRecords[student.id]?.status || 'ABSENT'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="markAttendance(${student.id})" title="Mark Attendance">
+                            <i class="fas fa-calendar-check"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function updateSummary() {
+            const presentCount = Object.values(attendanceRecords).filter(record => record.status === 'PRESENT').length;
+            const absentCount = Object.values(attendanceRecords).filter(record => record.status === 'ABSENT').length;
+            const totalStudents = Object.keys(attendanceRecords).length;
+            const attendancePercentage = totalStudents > 0 ? (presentCount / totalStudents * 100).toFixed(1) : 0;
+            
+            document.getElementById('presentCount').textContent = presentCount;
+            document.getElementById('absentCount').textContent = absentCount;
+            document.getElementById('attendancePercentage').textContent = attendancePercentage + '%';
+            document.getElementById('totalStudents').textContent = totalStudents;
+        }
+        
+        function handleClassFilter() {
+            handleFilter();
+        }
+        
+        function handleDivisionFilter() {
+            handleFilter();
+        }
+        
+        function handleFilter() {
+            const classFilter = document.getElementById('classFilter').value;
+            const divisionFilter = document.getElementById('divisionFilter').value;
+            
+            filteredStudents = studentsData.filter(student => {
+                const matchesClass = !classFilter || student.classEntity?.id == classFilter;
+                const matchesDivision = !divisionFilter || student.division?.id == divisionFilter;
+                return matchesClass && matchesDivision;
+            });
+            
+            renderAttendanceTable();
+            updateSummary();
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#selectAll)');
+            const isChecked = selectAll.checked;
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                const studentId = parseInt(checkbox.id.split('-')[1]);
+                if (attendanceRecords[studentId]) {
+                    attendanceRecords[studentId].status = isChecked ? 'PRESENT' : 'ABSENT';
+                    attendanceRecords[studentId].marked = true;
+                }
+            });
+            
+            updateSummary();
+        }
+        
+        function toggleAttendance(studentId) {
+            const checkbox = document.getElementById(`student-${studentId}`);
+            const isChecked = checkbox.checked;
+            
+            if (attendanceRecords[studentId]) {
+                attendanceRecords[studentId].status = isChecked ? 'PRESENT' : 'ABSENT';
+                attendanceRecords[studentId].marked = true;
+            }
+            
+            updateSummary();
+        }
+        
+        function markAllPresent() {
+            Object.keys(attendanceRecords).forEach(studentId => {
+                attendanceRecords[studentId].status = 'PRESENT';
+                attendanceRecords[studentId].marked = true;
+            });
+            
+            // Update checkboxes
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#selectAll)');
+            checkboxes.forEach(checkbox => checkbox.checked = true);
+            
+            document.getElementById('selectAll').checked = true;
+            
+            updateSummary();
+            showToast('All students marked as present', 'success');
+        }
+        
+        function markAttendance(studentId) {
+            const student = studentsData.find(s => s.id === studentId);
+            if (student) {
+                showAttendanceModal(student);
+            }
+        }
+        
+        function showAttendanceModal(student) {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Mark Attendance</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="student-info">
+                                <h4>${student.name}</h4>
+                                <p><strong>Roll Number:</strong> ${student.rollNumber || 'N/A'}</p>
+                                <p><strong>Email:</strong> ${student.email}</p>
+                                <p><strong>Class:</strong> ${student.classEntity?.className || 'N/A'}</p>
+                                <p><strong>Division:</strong> ${student.division?.divisionName || 'N/A'}</p>
+                            </div>
+                            <div class="attendance-options">
+                                <h5>Mark attendance for:</h5>
+                                <div class="date-selector">
+                                    <label for="modalDate">Date:</label>
+                                    <input type="date" id="modalDate" class="form-control" 
+                                           value="${document.getElementById('attendanceDate').value}">
+                                </div>
+                                <div class="status-buttons">
+                                    <button class="btn btn-success" onclick="markStudentAttendance(${student.id}, 'PRESENT')">
+                                        <i class="fas fa-check-circle"></i>
+                                        Present
+                                    </button>
+                                    <button class="btn btn-danger" onclick="markStudentAttendance(${student.id}, 'ABSENT')">
+                                        <i class="fas fa-times-circle"></i>
+                                        Absent
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+        
+        async function markStudentAttendance(studentId, status) {
+            showLoading();
+            
+            try {
+                const date = document.getElementById('modalDate').value;
+                const attendanceData = {
+                    student: { id: studentId },
+                    teacher: { id: getCurrentUser().id },
+                    attendanceDate: date,
+                    status: status
+                };
+                
+                await commonAPI.markAttendance(attendanceData);
+                
+                attendanceRecords[studentId].status = status;
+                attendanceRecords[studentId].marked = true;
+                
+                updateSummary();
+                closeModal();
+                showToast(`Attendance marked as ${status}`, 'success');
+                
+            } catch (error) {
+                console.error('Mark attendance error:', error);
+                showToast(error.message || 'Failed to mark attendance', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function loadAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            
+            if (!date) {
+                showToast('Please select a date', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await commonAPI.getAttendance({ date: date });
+                
+                if (response && response.length > 0) {
+                    response.forEach(attendance => {
+                        attendanceRecords[attendance.student.id] = {
+                            status: attendance.status,
+                            marked: true
+                        };
+                    });
+                    
+                    renderAttendanceTable();
+                    updateSummary();
+                    showToast('Attendance loaded successfully', 'success');
+                } else {
+                    showToast('No attendance found for selected date', 'info');
+                }
+                
+            } catch (error) {
+                console.error('Load attendance error:', error);
+                showToast(error.message || 'Failed to load attendance', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function saveAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            const markedRecords = Object.entries(attendanceRecords)
+                .filter(([id, record]) => record.marked)
+                .map(([studentId, record]) => ({
+                    student: { id: parseInt(studentId) },
+                    teacher: { id: getCurrentUser().id },
+                    attendanceDate: date,
+                    status: record.status
+                }));
+            
+            if (markedRecords.length === 0) {
+                showToast('No attendance changes to save', 'warning');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                // Save all marked attendance records
+                for (const record of markedRecords) {
+                    await commonAPI.markAttendance(record);
+                }
+                
+                showToast(`Attendance saved for ${markedRecords.length} students`, 'success');
+                closeModal();
+                
+            } catch (error) {
+                console.error('Save attendance error:', error);
+                showToast(error.message || 'Failed to save attendance', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function exportAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            const attendanceData = Object.entries(attendanceRecords)
+                .map(([studentId, record]) => ({
+                    rollNumber: studentsData.find(s => s.id === parseInt(studentId))?.rollNumber || 'N/A',
+                    name: studentsData.find(s => s.id === parseInt(studentId))?.name || 'N/A',
+                    email: studentsData.find(s => s.id === parseInt(studentId))?.email || 'N/A',
+                    class: studentsData.find(s => s.id === parseInt(studentId))?.classEntity?.className || 'N/A',
+                    division: studentsData.find(s => s.id === parseInt(studentId))?.division?.divisionName || 'N/A',
+                    status: record.status,
+                    date: date
+                }));
+            
+            const csvContent = [
+                ['Roll Number', 'Name', 'Email', 'Class', 'Division', 'Status', 'Date'],
+                ...attendanceData.map(record => [
+                    record.rollNumber,
+                    record.name,
+                    record.email,
+                    record.class,
+                    record.division,
+                    record.status,
+                    record.date
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance-${date}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Attendance exported successfully', 'success');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalContainer').innerHTML = '';
+        }
+        
+        function hideSkeleton() {
+            const skeleton = document.getElementById('skeletonLoader');
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

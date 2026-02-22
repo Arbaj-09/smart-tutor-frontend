@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+</head>
+<body>
+    <h1>Test Login API</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testRegister()">Test Register</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:8082/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'hod@smarttutor.com',
+                        password: 'admin123',
+                        role: 'HOD'
+                    })
+                });
+                
+                const result = await response.text();
+                document.getElementById('result').innerHTML = `
+                    <h3>Login Response:</h3>
+                    <pre>${result}</pre>
+                    <p>Status: ${response.status}</p>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function testRegister() {
+            try {
+                const response = await fetch('http://localhost:8082/auth/register-hod', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test HOD',
+                        email: 'hod@smarttutor.com',
+                        password: 'admin123'
+                    })
+                });
+                
+                const result = await response.text();
+                document.getElementById('result').innerHTML = `
+                    <h3>Register Response:</h3>
+                    <pre>${result}</pre>
+                    <p>Status: ${response.status}</p>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

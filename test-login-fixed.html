@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login Fixed</title>
+</head>
+<body>
+    <h1>Test Login API (Fixed)</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            try {
+                console.log('Sending login request...');
+                
+                const response = await fetch('http://localhost:8082/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'hod@smarttutor.com',
+                        password: 'admin123',
+                        role: 'HOD'
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                const result = await response.text();
+                console.log('Response text:', result);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Login Response:</h3>
+                    <pre>${result}</pre>
+                    <p>Status: ${response.status}</p>
+                    <p>OK: ${response.ok}</p>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

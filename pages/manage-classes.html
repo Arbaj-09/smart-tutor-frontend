@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Classes - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/modal.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Manage Classes</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="addClassBtn">
+                        <i class="fas fa-plus"></i>
+                        Add Class
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <section class="content">
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="searchInput">Search</label>
+                    <input type="text" id="searchInput" class="filter-control" placeholder="Search by class name...">
+                </div>
+                <button class="btn btn-primary" onclick="window.classesApp?.applyFilters()">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+                <button class="btn btn-outline" onclick="window.classesApp?.resetFilters()">
+                    <i class="fas fa-times"></i> Reset
+                </button>
+            </div>
+
+            <!-- Table Container -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h2 class="table-title">Classes</h2>
+                    <div class="table-actions">
+                        <button class="btn btn-primary" onclick="window.classesApp?.showCreateModal()">
+                            <i class="fas fa-plus"></i> Add Class
+                        </button>
+                        <button class="btn btn-outline" onclick="window.classesApp?.refreshData()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Skeleton Loader -->
+                <div class="skeleton-loader" id="skeletonLoader">
+                    <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                    </div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-wrapper" id="tableWrapper" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Class Name</th>
+                                <th>Student Count</th>
+                                <th>Teacher Count</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classesTableBody">
+                            <!-- Rows will be inserted here -->
+                        </tbody>
+                    </table>
+
+                    <!-- Empty State -->
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <div class="empty-icon">
+                            <i class="fas fa-chalkboard"></i>
+                        </div>
+                        <h3 class="empty-title">No Classes Found</h3>
+                        <p class="empty-subtitle">Try adjusting your filters or add a new class to get started.</p>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <div class="pagination-left">
+                        <span id="paginationInfo">Showing 0 of 0 classes</span>
+                    </div>
+                    <div class="pagination-right">
+                        <button class="pagination-btn" id="prevPageBtn" onclick="window.classesApp?.prevPage()" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="window.classesApp?.nextPage()" disabled>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/modal.js"></script>
+    <script src="../js/toast.js"></script>
+    <script src="../js/pagination.js"></script>
+    <script src="../js/search.js"></script>
+    <script src="../js/classes.js"></script>
+    
+    <script>
+        // Initialize page with sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.loadSidebar) {
+                window.loadSidebar();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOD Dashboard - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">HOD Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline btn-sm" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="showCreateModal()">
+                        <i class="fas fa-plus"></i>
+                        Add New
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <!-- Stats Cards -->
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-chalkboard"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="totalClasses">0</h3>
+                            <p class="stat-label">Total Classes</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-secondary">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="totalTeachers">0</h3>
+                            <p class="stat-label">Total Teachers</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="totalStudents">0</h3>
+                            <p class="stat-label">Total Students</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number" id="attendanceRate">0%</h3>
+                            <p class="stat-label">Attendance Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Quick Actions -->
+            <section class="quick-actions-section">
+                <div class="section-header">
+                    <h2>Quick Actions</h2>
+                </div>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-card" onclick="openCreateClassModal()">
+                        <div class="action-icon">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <h3>Create Class</h3>
+                        <p>Add a new academic class</p>
+                    </button>
+                    
+                    <button class="quick-action-card" onclick="openCreateDivisionModal()">
+                        <div class="action-icon">
+                            <i class="fas fa-object-group"></i>
+                        </div>
+                        <h3>Create Division</h3>
+                        <p>Add a new division to class</p>
+                    </button>
+                    
+                    <button class="quick-action-card" onclick="openCreateTeacherModal()">
+                        <div class="action-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <h3>Add Teacher</h3>
+                        <p>Register a new teacher</p>
+                    </button>
+                    
+                    <button class="quick-action-card" onclick="viewActivityLog()">
+                        <div class="action-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <h3>Activity Log</h3>
+                        <p>View system activities</p>
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Recent Activities -->
+            <section class="recent-activities-section">
+                <div class="section-header">
+                    <h2>Recent Activities</h2>
+                    <button class="btn btn-outline btn-sm" onclick="viewActivityLog()">View All</button>
+                </div>
+                <div class="activities-list" id="recentActivities">
+                    <!-- Activities will be loaded here -->
+                </div>
+            </section>
+            
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <h3>Class Distribution</h3>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="classDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <h3>Attendance Overview</h3>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script>
+        // Initialize HOD Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isAuthenticated() || !hasRole('HOD')) {
+                window.location.href = '/index.html';
+                return;
+            }
+            
+            window.loadSidebar();
+            loadDashboardData();
+        });
+        
+        async function loadDashboardData() {
+            try {
+                showLoading();
+                const response = await hodAPI.getDashboardStats();
+                
+                if (response) {
+                    updateStatsCards(response);
+                    await loadRecentActivities();
+                }
+            } catch (error) {
+                console.error('Dashboard data error:', error);
+                showToast('Failed to load dashboard data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function updateStatsCards(data) {
+            animateNumber('totalClasses', data.totalClasses || 0);
+            animateNumber('totalTeachers', data.totalTeachers || 0);
+            animateNumber('totalStudents', data.totalStudents || 0);
+            
+            const attendanceRate = data.overallAttendancePercentage || 0;
+            document.getElementById('attendanceRate').textContent = attendanceRate.toFixed(1) + '%';
+        }
+        
+        function animateNumber(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            const startValue = 0;
+            const duration = 1000;
+            const startTime = performance.now();
+            
+            function updateNumber(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
+                element.textContent = currentValue.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                }
+            }
+            
+            requestAnimationFrame(updateNumber);
+        }
+        
+        async function loadRecentActivities() {
+            try {
+                const activities = await hodAPI.getActivityLogs();
+                displayRecentActivities(activities);
+            } catch (error) {
+                console.error('Activities error:', error);
+                document.getElementById('recentActivities').innerHTML = '<p class="no-activities">Failed to load activities</p>';
+            }
+        }
+        
+        function displayRecentActivities(activities) {
+            const container = document.getElementById('recentActivities');
+            
+            if (activities.length === 0) {
+                container.innerHTML = '<p class="no-activities">No recent activities</p>';
+                return;
+            }
+            
+            container.innerHTML = activities.slice(0, 5).map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas ${getActivityIcon(activity.action)}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <h4>${formatActivityTitle(activity.action)}</h4>
+                        <p>${activity.description}</p>
+                        <small class="activity-time">${formatDateTime(activity.createdAt)}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getActivityIcon(action) {
+            const iconMap = {
+                'CREATE_CLASS': 'fa-chalkboard',
+                'CREATE_DIVISION': 'fa-object-group',
+                'CREATE_TEACHER': 'fa-user-plus',
+                'UPDATE_TEACHER': 'fa-user-edit',
+                'DELETE_TEACHER': 'fa-user-minus',
+                'CREATE_STUDENT': 'fa-user-graduate',
+                'MARK_ATTENDANCE': 'fa-calendar-check',
+                'UPLOAD_NOTES': 'fa-file-upload',
+                'CREATE_QUIZ': 'fa-question-circle'
+            };
+            
+            return iconMap[action] || 'fa-circle';
+        }
+        
+        function formatActivityTitle(action) {
+            return action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        function refreshDashboard() {
+            loadDashboardData();
+            showToast('Dashboard refreshed', 'success');
+        }
+        
+        function showCreateModal() {
+            // Show modal with options to create class, division, or teacher
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Quick Actions</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="quick-actions-list">
+                                <button class="quick-action-btn" onclick="openCreateClassModal(); closeModal();">
+                                    <i class="fas fa-chalkboard"></i>
+                                    Create Class
+                                </button>
+                                <button class="quick-action-btn" onclick="openCreateDivisionModal(); closeModal();">
+                                    <i class="fas fa-object-group"></i>
+                                    Create Division
+                                </button>
+                                <button class="quick-action-btn" onclick="openCreateTeacherModal(); closeModal();">
+                                    <i class="fas fa-user-plus"></i>
+                                    Add Teacher
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+        }
+        
+        function openCreateClassModal() {
+            const modalHTML = `
+                <div class="modal-overlay active">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Create Class</h3>
+                            <button class="modal-close" onclick="closeModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="createClassForm">
+                                <div class="form-group">
+                                    <label>Class Name</label>
+                                    <input type="text" name="className" required placeholder="e.g., FY, SY, TY">
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Create Class</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+            document.getElementById('createClassForm').addEventListener('submit', handleCreateClass);
+        }
+        
+        async function handleCreateClass(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const classData = {
+                className: formData.get('className')
+            };
+            
+            showLoading();
+            
+            try {
+                await hodAPI.createClass(classData);
+                showToast('Class created successfully', 'success');
+                closeModal();
+                loadDashboardData(); // Refresh data
+            } catch (error) {
+                console.error('Create class error:', error);
+                showToast(error.message || 'Failed to create class', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function openCreateDivisionModal() {
+            showToast('Create Division modal - Coming soon!', 'info');
+        }
+        
+        function openCreateTeacherModal() {
+            showToast('Create Teacher modal - Coming soon!', 'info');
+        }
+        
+        function viewActivityLog() {
+            window.location.href = '../pages/activity-log.html';
+        }
+        
+        function viewAllActivities() {
+            window.location.href = '../pages/activity-log.html';
+        }
+        
+        function showAddNewMenu() {
+            // Implementation for add new menu
+            showToast('Add New menu - Coming soon!', 'info');
+        }
+    </script>
+    
+    <!-- Scripts -->
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+</body>
+</html>

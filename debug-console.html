@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTutor Debug Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #1a1a1a;
+            padding: 15px 20px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            color: #00ff88;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #555;
+        }
+        
+        .btn.clear {
+            background: #ff4444;
+        }
+        
+        .btn.clear:hover {
+            background: #ff6666;
+        }
+        
+        .btn.export {
+            background: #4488ff;
+        }
+        
+        .btn.export:hover {
+            background: #66aaff;
+        }
+        
+        .log-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            word-wrap: break-word;
+        }
+        
+        .log-entry.log {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid #888;
+        }
+        
+        .log-entry.error {
+            background: rgba(255, 68, 68, 0.1);
+            border-left: 3px solid #ff4444;
+        }
+        
+        .log-entry.warn {
+            background: rgba(255, 187, 0, 0.1);
+            border-left: 3px solid #ffbb00;
+        }
+        
+        .log-entry.info {
+            background: rgba(68, 136, 255, 0.1);
+            border-left: 3px solid #4488ff;
+        }
+        
+        .log-entry.success {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 3px solid #00ff88;
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 11px;
+        }
+        
+        .status-bar {
+            background: #1a1a1a;
+            padding: 10px 20px;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        
+        .status-item {
+            color: #888;
+        }
+        
+        .status-item span {
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .filter-controls select {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .auto-scroll {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .auto-scroll input {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 SmartTutor Debug Console</h1>
+        <div class="controls">
+            <div class="filter-controls">
+                <select id="logFilter">
+                    <option value="all">All Logs</option>
+                    <option value="log">Logs</option>
+                    <option value="error">Errors</option>
+                    <option value="warn">Warnings</option>
+                    <option value="info">Info</option>
+                    <option value="success">Success</option>
+                </select>
+            </div>
+            <div class="auto-scroll">
+                <input type="checkbox" id="autoScroll" checked>
+                <label for="autoScroll">Auto Scroll</label>
+            </div>
+            <button class="btn" onclick="refreshLogs()">🔄 Refresh</button>
+            <button class="btn export" onclick="exportLogs()">📥 Export</button>
+            <button class="btn clear" onclick="clearLogs()">🗑️ Clear</button>
+        </div>
+    </div>
+    
+    <div class="log-container" id="logContainer">
+        <!-- Logs will appear here -->
+    </div>
+    
+    <div class="status-bar">
+        <div class="status-item">Total Logs: <span id="totalLogs">0</span></div>
+        <div class="status-item">Current Page: <span id="currentPage">Unknown</span></div>
+        <div class="status-item">Last Updated: <span id="lastUpdated">Never</span></div>
+    </div>
+
+    <!-- Debug Logger Script - Must be included to capture logs -->
+    <script src="js/debug-logger.js"></script>
+
+    <script>
+        // Global log storage
+        let allLogs = [];
+        let currentFilter = 'all';
+        let autoScroll = true;
+        
+        // Initialize console override immediately
+        function initializeConsoleOverride() {
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            const originalInfo = console.info;
+            
+            function captureLog(type, ...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                const message = args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg, null, 2);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+                
+                const logEntry = {
+                    timestamp: timestamp,
+                    type: type,
+                    message: message,
+                    url: window.location.href,
+                    page: getPageName()
+                };
+                
+                allLogs.push(logEntry);
+                
+                // Keep only last 1000 logs to prevent memory issues
+                if (allLogs.length > 1000) {
+                    allLogs = allLogs.slice(-1000);
+                }
+                
+                // Store in localStorage for persistence across pages
+                try {
+                    localStorage.setItem('debugConsoleLogs', JSON.stringify(allLogs));
+                } catch (e) {
+                    // If localStorage is full, clear some old logs
+                    if (e.name === 'QuotaExceededError') {
+                        allLogs = allLogs.slice(-500);
+                        localStorage.setItem('debugConsoleLogs', JSON.stringify(allLogs));
+                    }
+                }
+                
+                // Call original console function
+                switch(type) {
+                    case 'log':
+                        originalLog.apply(console, args);
+                        break;
+                    case 'error':
+                        originalError.apply(console, args);
+                        break;
+                    case 'warn':
+                        originalWarn.apply(console, args);
+                        break;
+                    case 'info':
+                        originalInfo.apply(console, args);
+                        break;
+                }
+                
+                // Update display if we're on this page
+                if (window.location.href.includes('debug-console.html')) {
+                    updateLogDisplay();
+                }
+            }
+            
+            console.log = function(...args) { captureLog('log', ...args); };
+            console.error = function(...args) { captureLog('error', ...args); };
+            console.warn = function(...args) { captureLog('warn', ...args); };
+            console.info = function(...args) { captureLog('info', ...args); };
+            
+            console.log('🔍 Debug Console: Console override initialized');
+        }
+        
+        function getPageName() {
+            const path = window.location.pathname;
+            if (path.includes('login.html')) return 'Login';
+            if (path.includes('teacher-dashboard')) return 'Teacher Dashboard';
+            if (path.includes('student-dashboard')) return 'Student Dashboard';
+            if (path.includes('hod-dashboard')) return 'HOD Dashboard';
+            if (path.includes('debug-console')) return 'Debug Console';
+            return 'Unknown';
+        }
+        
+        function updateLogDisplay() {
+            const container = document.getElementById('logContainer');
+            const filter = document.getElementById('logFilter').value;
+            const autoScrollCheckbox = document.getElementById('autoScroll');
+            autoScroll = autoScrollCheckbox.checked;
+            
+            // Filter logs
+            let filteredLogs = allLogs;
+            if (filter !== 'all') {
+                filteredLogs = allLogs.filter(log => log.type === filter);
+            }
+            
+            // Clear container
+            container.innerHTML = '';
+            
+            // Add logs
+            filteredLogs.forEach(log => {
+                const logDiv = document.createElement('div');
+                logDiv.className = `log-entry ${log.type}`;
+                logDiv.innerHTML = `
+                    <span class="timestamp">[${log.timestamp}] [${log.page}]</span> ${log.message}
+                `;
+                container.appendChild(logDiv);
+            });
+            
+            // Update status
+            document.getElementById('totalLogs').textContent = filteredLogs.length;
+            document.getElementById('currentPage').textContent = getPageName();
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+            
+            // Auto scroll to bottom if enabled
+            if (autoScroll) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+        
+        function loadStoredLogs() {
+            try {
+                const stored = localStorage.getItem('debugConsoleLogs');
+                if (stored) {
+                    allLogs = JSON.parse(stored);
+                    console.log(`🔍 Debug Console: Loaded ${allLogs.length} stored logs`);
+                } else {
+                    console.log('🔍 Debug Console: No stored logs found');
+                }
+            } catch (e) {
+                console.error('🔍 Debug Console: Failed to load stored logs:', e);
+            }
+        }
+        
+        function refreshLogs() {
+            console.log('🔄 Debug Console: Refreshing logs...');
+            loadStoredLogs();
+            updateLogDisplay();
+        }
+        
+        function clearLogs() {
+            if (confirm('Are you sure you want to clear all logs?')) {
+                allLogs = [];
+                localStorage.removeItem('debugConsoleLogs');
+                updateLogDisplay();
+                console.log('🔍 Debug Console: All logs cleared');
+            }
+        }
+        
+        function exportLogs() {
+            const logText = allLogs.map(log => 
+                `[${log.timestamp}] [${log.page}] [${log.type.toUpperCase()}] ${log.message}`
+            ).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `smarttutor-debug-logs-${new Date().toISOString().slice(0, 19)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('🔍 Debug Console: Logs exported');
+        }
+        
+        // Event listeners
+        document.getElementById('logFilter').addEventListener('change', updateLogDisplay);
+        document.getElementById('autoScroll').addEventListener('change', updateLogDisplay);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStoredLogs();
+            updateLogDisplay();
+            
+            // Update display every second to show real-time logs
+            setInterval(updateLogDisplay, 1000);
+            
+            console.log('🔍 Debug Console: Page loaded and ready');
+        });
+        
+        // Initialize console override immediately (before DOM loads)
+        initializeConsoleOverride();
+        
+        // Make functions globally available
+        window.clearLogs = clearLogs;
+        window.exportLogs = exportLogs;
+        window.updateLogDisplay = updateLogDisplay;
+    </script>
+</body>
+</html>

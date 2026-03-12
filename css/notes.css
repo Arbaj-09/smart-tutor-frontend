@@ -1,0 +1,242 @@
+/* ================= NOTES PAGE ================= */
+
+.content {
+  margin-top: 20px;
+}
+
+/* ===== FORM STYLES ===== */
+
+input[readonly] {
+  background-color: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  cursor: not-allowed !important;
+  opacity: 0.8;
+}
+
+.form-help {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* ===== SEARCH BAR SECTION ===== */
+
+.search-section {
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 25px;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-box i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-color);
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  transition: 0.3s;
+}
+
+.search-box input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+  outline: none;
+}
+
+.search-container select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  min-width: 150px;
+}
+
+/* ===== NOTES GRID ===== */
+
+.notes-section {
+  margin-top: 10px;
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+  gap: 20px;
+}
+
+/* ===== NOTE CARD ===== */
+
+.note-card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: 0.25s;
+  position: relative;
+}
+
+.note-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* header */
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.note-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dark-color);
+}
+
+.note-meta {
+  font-size: 12px;
+  color: var(--gray-color);
+  display: flex;
+  gap: 8px;
+}
+
+/* description */
+
+.note-description {
+  font-size: 14px;
+  color: var(--gray-color);
+  margin-top: 10px;
+  min-height: 40px;
+}
+
+/* file section */
+
+.note-file {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-file i {
+  color: #ef4444;
+}
+
+.file-link {
+  font-size: 13px;
+}
+
+/* footer */
+
+.note-footer {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--gray-color);
+}
+
+/* teacher */
+
+.note-teacher {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* actions */
+
+.note-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* buttons inside card */
+
+.note-actions .btn {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+/* ===== NO DATA ===== */
+
+.no-data {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--gray-color);
+}
+
+.no-data i {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+/* ===== SKELETON LOADER ===== */
+
+.skeleton-loader {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+  gap: 20px;
+}
+
+.skeleton-card {
+  height: 160px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    #f3f4f6 25%,
+    #e5e7eb 37%,
+    #f3f4f6 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton 1.4s ease infinite;
+}
+
+@keyframes skeleton {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+
+  .search-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-container select {
+    width: 100%;
+  }
+
+}

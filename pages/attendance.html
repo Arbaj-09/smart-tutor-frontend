@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -165,8 +165,11 @@
         <p>Loading...</p>
     </div>
     
+    <script src="../js/auth-utils.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/modal.js"></script>
+    <script src="../js/toast.js"></script>
     <script>
         let attendanceData = [];
         let classesData = [];
@@ -177,11 +180,37 @@
         
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            if (!isAuthenticated() || !hasRole('TEACHER')) {
-                window.location.href = '/index.html';
+            console.log('🔍 ATTENDANCE: Page loading...');
+            
+            // Manual auth check (same as dashboard)
+            const userStr = localStorage.getItem('user');
+            console.log('🔍 ATTENDANCE: Manual auth check - userStr:', userStr);
+            
+            if (!userStr) {
+                console.log('🔍 ATTENDANCE: No user found, redirecting to login');
+                window.location.href = '../index.html';
                 return;
             }
             
+            try {
+                const user = JSON.parse(userStr);
+                console.log('🔍 ATTENDANCE: Parsed user:', user);
+                
+                if (!user.role || (user.role !== 'TEACHER' && user.role !== 'STUDENT')) {
+                    console.log('🔍 ATTENDANCE: User not authorized, redirecting. Role:', user.role);
+                    window.location.href = '../index.html';
+                    return;
+                }
+                
+                console.log('🔍 ATTENDANCE: Auth check PASSED for role:', user.role);
+                
+            } catch (error) {
+                console.log('🔍 ATTENDANCE: Failed to parse user, redirecting:', error);
+                window.location.href = '../index.html';
+                return;
+            }
+            
+            console.log('🔍 ATTENDANCE: Loading sidebar...');
             window.loadSidebar();
             loadInitialData();
         });

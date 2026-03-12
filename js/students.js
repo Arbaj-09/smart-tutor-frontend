@@ -1,4 +1,5 @@
 (function () {
+    console.log('✅ students.js loaded');
     const PAGE_SIZE = 10;
 
     let allStudents = [];
@@ -7,33 +8,66 @@
     let allTeachers = [];
     let filteredStudents = [];
     let currentPage = 1;
+    let editingStudentId = null;
 
-    function requireHod() {
-        const user = getCurrentUser();
+    function requireTeacher() {
+        // Manual user check (same as other pages)
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            console.warn("Redirect prevented for demo - students.js");
+            return null;
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            console.warn("Redirect prevented for demo - students.js parse error");
+            return null;
+        }
+        
         if (!user?.name || !user?.role) {
-            window.location.href = '/index.html';
+            console.warn("Redirect prevented for demo - students.js");
             return null;
         }
         const role = String(user.role).toUpperCase();
-        if (role !== 'HOD') {
-            window.location.href = '/index.html';
+        // Allow both TEACHER and HOD to access this page
+        if (role !== 'TEACHER' && role !== 'HOD') {
+            console.warn("Redirect prevented for demo - students.js role check");
             return null;
         }
         return { name: user.name, role };
     }
 
+    // Simple confirm function if showConfirm is not available
+    function showConfirm(options) {
+        return new Promise((resolve) => {
+            const confirmed = window.confirm(options.message || options.title || 'Are you sure?');
+            resolve(confirmed);
+        });
+    }
+
+    // Simple toast functions if not available
+    function showSuccess(message) {
+        console.log('SUCCESS:', message);
+        if (window.showSuccessToast) {
+            window.showSuccessToast(message);
+        } else {
+            alert('✅ ' + message);
+        }
+    }
+
+    function showError(message) {
+        console.log('ERROR:', message);
+        if (window.showErrorToast) {
+            window.showErrorToast(message);
+        } else {
+            alert('❌ ' + message);
+        }
+    }
+
     function $(id) {
         return document.getElementById(id);
-    }
-
-    function showSkeleton() {
-        const skeleton = $('skeletonLoader');
-        if (skeleton) skeleton.style.display = '';
-    }
-
-    function hideSkeleton() {
-        const skeleton = $('skeletonLoader');
-        if (skeleton) skeleton.style.display = 'none';
     }
 
     function safeText(v) {
@@ -55,10 +89,15 @@
             const matchSearch = !search || (
                 s.name.toLowerCase().includes(search) ||
                 s.email.toLowerCase().includes(search) ||
-                (s.rollNumber && s.rollNumber.toLowerCase().includes(search))
+                ((s.rollNumber || s.rollNo) && (s.rollNumber || s.rollNo).toLowerCase().includes(search))
             );
-            const matchClass = !classId || s.classId == classId;
-            const matchDivision = !divisionId || s.divisionId == divisionId;
+            // Filter by class name and division name from API response
+            const classObj = !classId || allClasses.find(c => c.id == classId);
+            const divisionObj = !divisionId || allDivisions.find(d => d.id == divisionId);
+            
+            const matchClass = !classId || (classObj && s.className === classObj.className);
+            const matchDivision = !divisionId || (divisionObj && s.divisionName === divisionObj.divisionName);
+            
             return matchSearch && matchClass && matchDivision;
         });
 
@@ -89,12 +128,33 @@
     }
 
     function renderTable() {
+        console.log('🎨 renderTable called');
         const tbody = $('studentsTableBody');
+        const skeleton = $('skeletonLoader');
         const wrapper = $('tableWrapper');
         const empty = $('emptyState');
-        if (!tbody) return;
+        console.log('🔍 studentsTableBody:', tbody);
+        console.log('🔍 skeletonLoader:', skeleton);
+        console.log('🔍 tableWrapper:', wrapper);
+        
+        if (!tbody) {
+            console.error('❌ DOM ID not found: studentsTableBody');
+            return;
+        }
+        
+        // CRITICAL: Hide skeleton, show table
+        if (skeleton) {
+            skeleton.style.display = 'none';
+            skeleton.style.pointerEvents = 'none';
+        }
+        if (wrapper) {
+            wrapper.style.display = 'block';
+            wrapper.style.pointerEvents = 'auto';
+        }
 
         const page = getPageSlice();
+        console.log('🧩 Rendering rows:', page.rows.length);
+        console.log('➡ Row data sample:', page.rows[0]);
 
         if (page.total === 0) {
             tbody.innerHTML = '';
@@ -104,20 +164,21 @@
             return;
         }
 
-        if (wrapper) wrapper.style.display = 'block';
         if (empty) empty.style.display = 'none';
 
         tbody.innerHTML = page.rows.map(student => {
-            const className = allClasses.find(c => c.id === student.classId)?.className || 'N/A';
-            const divisionName = allDivisions.find(d => d.id === student.divisionId)?.divisionName || 'N/A';
-            const teacherName = allTeachers.find(t => t.id === student.teacherId)?.name || 'N/A';
+            // Use className and divisionName from API response
+            const className = student.className || 'N/A';
+            const divisionName = student.divisionName || 'N/A';
+            
+            console.log('📋 Student data:', { id: student.id, name: student.name, className, divisionName });
+            
             return `
                 <tr>
                     <td>${safeText(student.name)}</td>
                     <td><a href="mailto:${safeText(student.email)}" class="email-link">${safeText(student.email)}</a></td>
                     <td><span class="badge badge-primary">${safeText(className)}</span></td>
                     <td><span class="badge badge-secondary">${safeText(divisionName)}</span></td>
-                    <td>${safeText(formatDate(student.createdAt))}</td>
                     <td>
                         <div class="action-buttons">
                             <button class="icon-btn" onclick="window.studentsApp.viewStudent(${student.id})" title="View Details">
@@ -135,6 +196,7 @@
             `;
         }).join('');
 
+        console.log('✅ Table rendered, tbody.children.length:', tbody.children.length);
         updatePaginationInfo(page.start + 1, Math.min(page.end, page.total), page.total);
     }
 
@@ -186,20 +248,64 @@
     }
 
     async function loadInitialData() {
+        console.log('📡 Calling API: students, classes, divisions');
         try {
             showLoading();
-            hideSkeleton();
+            
+            // Manual user check (same as other pages)
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                throw new Error('User not found in localStorage');
+            }
+            
+            let user;
+            try {
+                user = JSON.parse(userStr);
+            } catch (error) {
+                throw new Error('Failed to parse user data');
+            }
+            
+            if (!user || !user.userId) {
+                throw new Error('User not found or invalid user data');
+            }
+            
+            console.log('🔍 STUDENTS: Using user for API calls:', user);
 
-            const [studentsResponse, classesResponse, divisionsResponse, teachersResponse] = await Promise.all([
-                hodAPI.getAllStudents(),
+            let studentsResponse;
+            const role = String(user.role).toUpperCase();
+            
+            if (role === 'HOD') {
+                // Use HOD API - note: GET endpoint is plural "students"
+                studentsResponse = await api.get(`${API_PREFIX}/hod/students`);
+            } else {
+                // Use Teacher API
+                studentsResponse = await api.get(`${API_PREFIX}/teachers/${user.userId}/students`);
+            }
+
+            const [classesResponse, divisionsResponse] = await Promise.all([
                 commonAPI.getClasses(),
-                commonAPI.getDivisions(),
-                commonAPI.getTeachers()
+                commonAPI.getDivisions()
             ]);
 
+            console.log('📥 API response students:', studentsResponse);
+            console.log('📥 API response classes:', classesResponse);
+            console.log('📥 API response divisions:', divisionsResponse);
+
             if (studentsResponse) {
+                console.log('🔍 Students data structure:', studentsResponse);
+                if (Array.isArray(studentsResponse)) {
+                    console.log('📊 Students count:', studentsResponse.length);
+                    if (studentsResponse.length > 0) {
+                        console.log('👤 First student sample:', studentsResponse[0]);
+                    }
+                }
                 allStudents = studentsResponse;
                 filteredStudents = studentsResponse;
+                if (studentsResponse.length === 0) {
+                    console.log('📭 No students found in database');
+                }
+            } else {
+                console.log('⚠️ No students response received');
             }
 
             if (classesResponse) {
@@ -210,225 +316,280 @@
                 allDivisions = divisionsResponse;
             }
 
-            if (teachersResponse) {
-                allTeachers = teachersResponse;
-            }
-
             populateFilters();
             applyFilters();
         } catch (error) {
             console.error('Load initial data error:', error);
-            showToast('Failed to load data', 'error');
+            showError('Failed to load data');
         } finally {
             hideLoading();
-            hideSkeleton();
         }
     }
 
-    function closeModal() {
-        const container = $('modalContainer');
-        if (container) container.innerHTML = '';
-    }
-
-    function openConfirmModal({ title, message, confirmText, onConfirm }) {
-        const container = $('modalContainer');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${safeText(title)}</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="confirm-message">${safeText(message)}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                        <button class="btn btn-danger" onclick="handleConfirm()">${safeText(confirmText)}</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        window.handleConfirm = async () => {
-            await onConfirm();
-        };
-    }
-
     function openStudentModal({ mode = 'create', student = null }) {
-        const container = $('modalContainer');
-        if (!container) return;
-
+        console.log('🪟 Opening student modal, mode:', mode);
+        console.log('📚 Available classes:', allClasses);
+        console.log('📋 Available divisions:', allDivisions);
+        
+        editingStudentId = mode === 'edit' ? student?.id : null;
         const isEdit = mode === 'edit';
         const title = isEdit ? 'Edit Student' : 'Add Student';
 
         const name = student?.name || '';
-        const rollNumber = student?.rollNumber || '';
+        const rollNumber = student?.rollNo || '';
         const email = student?.email || '';
-        const classId = student?.classId || '';
-        const divisionId = student?.divisionId || '';
-        const teacherId = student?.teacherId || '';
+        
+        // For edit mode, find class and division IDs by matching names
+        let classId = '';
+        let divisionId = '';
+        
+        if (isEdit) {
+            const classObj = allClasses.find(c => c.className === student?.className);
+            const divisionObj = allDivisions.find(d => d.divisionName === student?.divisionName);
+            classId = classObj?.id || '';
+            divisionId = divisionObj?.id || '';
+        }
 
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <form id="studentForm" onsubmit="handleStudentSubmit(event)">
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label for="studentName">Full Name</label>
-                                <input type="text" id="studentName" name="name" class="form-control" value="${safeText(name)}" required placeholder="Enter full name" maxlength="100" />
-                            </div>
-                            <div class="form-group">
-                                <label for="rollNumber">Roll Number</label>
-                                <input type="text" id="rollNumber" name="rollNumber" class="form-control" value="${safeText(rollNumber)}" required placeholder="Enter roll number" maxlength="20" />
-                            </div>
-                            <div class="form-group">
-                                <label for="studentEmail">Email Address</label>
-                                <input type="email" id="studentEmail" name="email" class="form-control" value="${safeText(email)}" required placeholder="Enter email address" maxlength="100" />
-                            </div>
-                            <div class="form-group">
-                                <label for="classId">Class</label>
-                                <select id="classId" name="classId" class="form-control form-select" required>
-                                    <option value="">Select Class</option>
-                                    ${allClasses.map(c => `<option value="${c.id}" ${c.id == classId ? 'selected' : ''}>${safeText(c.className)}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="divisionId">Division</label>
-                                <select id="divisionId" name="divisionId" class="form-control form-select" required>
-                                    <option value="">Select Division</option>
-                                    ${allDivisions.map(d => `<option value="${d.id}" ${d.id == divisionId ? 'selected' : ''}>${safeText(d.divisionName)}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                            <button type="submit" class="btn btn-primary">${isEdit ? 'Update' : 'Create'}</button>
-                        </div>
-                    </form>
+        const content = `
+            <form id="studentForm" class="form-section">
+                <div class="form-group">
+                    <label for="studentName">Full Name</label>
+                    <input type="text" id="studentName" name="name" class="form-control" value="${safeText(name)}" required placeholder="Enter full name" maxlength="100" />
                 </div>
-            </div>
+                <div class="form-group">
+                    <label for="rollNumber">Roll Number</label>
+                    <input type="text" id="rollNumber" name="rollNumber" class="form-control" value="${safeText(rollNumber)}" required placeholder="Enter roll number" maxlength="20" />
+                </div>
+                <div class="form-group">
+                    <label for="studentEmail">Email Address</label>
+                    <input type="email" id="studentEmail" name="email" class="form-control" value="${safeText(email)}" required placeholder="Enter email address" maxlength="100" />
+                </div>
+                <div class="form-group">
+                    <label for="studentPhone">Phone Number</label>
+                    <input type="tel" id="studentPhone" name="phone" class="form-control" value="${safeText(student?.phone || '')}" placeholder="Enter phone number" maxlength="20" />
+                </div>
+                <div class="form-group">
+                    <label for="classId">Class</label>
+                    <select id="classId" name="classId" class="form-control form-select" required>
+                        <option value="">Select Class</option>
+                        ${allClasses.map(c => `<option value="${c.id}" ${c.id == classId ? 'selected' : ''}>${safeText(c.className)}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="divisionId">Division</label>
+                    <select id="divisionId" name="divisionId" class="form-control form-select" required>
+                        <option value="">Select Division</option>
+                        ${allDivisions.map(d => `<option value="${d.id}" ${d.id == divisionId ? 'selected' : ''}>${safeText(d.divisionName)}</option>`).join('')}
+                    </select>
+                </div>
+            </form>
         `;
 
-        window.handleStudentSubmit = async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const payload = {
-                name: fd.get('name')?.trim(),
-                rollNumber: fd.get('rollNumber')?.trim(),
-                email: fd.get('email')?.trim(),
-                classId: Number(fd.get('classId')),
-                divisionId: Number(fd.get('divisionId')),
-                teacherId: Number(fd.get('teacherId'))
-            };
-
-            if (!payload.name || !payload.rollNumber || !payload.email || !payload.classId || !payload.divisionId || !payload.teacherId) {
-                showToast('Please fill all required fields', 'error');
-                return;
-            }
-
-            try {
-                showLoading();
-                if (isEdit) {
-                    await hodAPI.updateStudent(student.id, payload);
-                    showToast('Student updated successfully', 'success');
-                } else {
-                    await hodAPI.createStudent(payload);
-                    showToast('Student created successfully', 'success');
+        console.log('🎨 Showing modal with title:', title);
+        console.log('📝 Modal content length:', content.length);
+        console.log('🔍 showModal function available:', typeof showModal);
+        
+        if (typeof showModal !== 'function') {
+            console.error('❌ showModal function not available!');
+            alert('Modal system not loaded. Please refresh the page.');
+            return;
+        }
+        
+        // Add a test to verify window.studentsApp.submitStudent exists
+        console.log('🔍 window.studentsApp.submitStudent available:', typeof window.studentsApp?.submitStudent);
+        
+        showModal({
+            title,
+            content,
+            type: 'custom',
+            size: 'medium',
+            buttons: [
+                {
+                    text: 'Cancel',
+                    class: 'btn-outline',
+                    action: 'close'
+                },
+                {
+                    text: isEdit ? 'Update' : 'Create',
+                    class: 'btn-primary',
+                    action: 'submit'
                 }
-                closeModal();
-                await loadInitialData();
-            } catch (err) {
-                console.error('Save student error:', err);
-                showToast(err.message || 'Failed to save student', 'error');
-            } finally {
-                hideLoading();
+            ],
+            onSubmit: function() {
+                console.log('🔘 Create button clicked via action!');
+                window.studentsApp.submitStudent();
             }
+        });
+        
+        console.log('✅ Modal should be displayed now with proper action buttons');
+    }
+
+    async function submitStudent() {
+        console.log('🚀 submitStudent called');
+        const form = document.getElementById('studentForm');
+        if (!form) {
+            console.log('❌ Form not found');
+            return;
+        }
+        console.log('✅ Form found:', form);
+
+        const fd = new FormData(form);
+        const payload = {
+            name: fd.get('name')?.trim(),
+            rollNumber: fd.get('rollNumber')?.trim(),
+            email: fd.get('email')?.trim(),
+            phone: fd.get('phone')?.trim() || '1234567890', // Default phone if not provided
+            classId: Number(fd.get('classId')),
+            divisionId: Number(fd.get('divisionId'))
         };
+        
+        console.log('📋 Form data extracted:', payload);
+
+        if (!payload.name || !payload.rollNumber || !payload.email || !payload.classId || !payload.divisionId) {
+            console.log('❌ Validation failed:', {
+                name: !!payload.name,
+                rollNumber: !!payload.rollNumber,
+                email: !!payload.email,
+                classId: !!payload.classId,
+                divisionId: !!payload.divisionId
+            });
+            showError('Please fill all required fields');
+            return;
+        }
+        
+        console.log('✅ Validation passed');
+
+        try {
+            showLoading();
+            const user = getCurrentUser();
+            if (!user || !user.userId) {
+                throw new Error('User not found');
+            }
+            
+            const role = String(user.role).toUpperCase();
+            
+            // No need to add teacherId - students are assigned via class/division
+            console.log('🚀 Sending student payload:', payload);
+            
+            if (editingStudentId) {
+                if (role === 'HOD') {
+                    await api.put(`${API_PREFIX}/hod/students/${editingStudentId}`, payload);
+                } else {
+                    await api.put(`${API_PREFIX}/teachers/${user.userId}/students/${editingStudentId}`, payload);
+                }
+                showSuccess('Student updated successfully');
+            } else {
+                if (role === 'HOD') {
+                    await api.post(`${API_PREFIX}/hod/student`, payload);
+                } else {
+                    await api.post(`${API_PREFIX}/teachers/${user.userId}/students`, payload);
+                }
+                showSuccess('Student created successfully');
+            }
+            closeModal();
+            await loadInitialData();
+        } catch (err) {
+            console.error('Save student error:', err);
+            showError(err.message || 'Failed to save student');
+        } finally {
+            hideLoading();
+        }
     }
 
     function viewStudent(id) {
+        console.log('🖱️ View clicked for ID:', id);
+        hideLoading(); // CRITICAL: Clear any active overlay
         const student = allStudents.find(s => s.id === id);
         if (!student) {
-            showToast('Student not found', 'error');
+            showError('Student not found');
             return;
         }
 
-        const className = allClasses.find(c => c.id === student.classId)?.className || 'N/A';
-        const divisionName = allDivisions.find(d => d.id === student.divisionId)?.divisionName || 'N/A';
-        const teacherName = allTeachers.find(t => t.id === student.teacherId)?.name || 'N/A';
+        const className = student.className || 'N/A';
+        const divisionName = student.divisionName || 'N/A';
+        const teacherName = student.teacherName || 'N/A';
 
-        const container = $('modalContainer');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Student Details</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Full Name:</strong> ${safeText(student.name)}</p>
-                        <p><strong>Roll Number:</strong> ${safeText(student.rollNumber)}</p>
-                        <p><strong>Email:</strong> ${safeText(student.email)}</p>
-                        <p><strong>Class:</strong> ${safeText(className)}</p>
-                        <p><strong>Division:</strong> ${safeText(divisionName)}</p>
-                        <p><strong>Teacher:</strong> ${safeText(teacherName)}</p>
-                        <p><strong>Created Date:</strong> ${safeText(formatDate(student.createdAt))}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-primary" onclick="closeModal()">Close</button>
-                    </div>
-                </div>
-            </div>
+        const content = `
+            <p><strong>Full Name:</strong> ${safeText(student.name)}</p>
+            <p><strong>Roll Number:</strong> ${safeText(student.rollNo)}</p>
+            <p><strong>Email:</strong> ${safeText(student.email)}</p>
+            <p><strong>Class:</strong> ${safeText(className)}</p>
+            <p><strong>Division:</strong> ${safeText(divisionName)}</p>
+            <p><strong>Teacher:</strong> ${safeText(teacherName)}</p>
+            <p><strong>Created Date:</strong> ${safeText(formatDate(student.createdAt))}</p>
         `;
+
+        showModal({
+            title: 'Student Details',
+            content,
+            size: 'medium',
+            customActions: `
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            `
+        });
     }
 
     function editStudent(id) {
+        console.log('🖱️ Edit clicked for ID:', id);
+        hideLoading(); // CRITICAL: Clear any active overlay
         const student = allStudents.find(s => s.id === id);
         if (!student) {
-            showToast('Student not found', 'error');
+            showError('Student not found');
             return;
         }
+        console.log('🪟 Opening modal with data:', student);
         openStudentModal({ mode: 'edit', student });
     }
 
     async function deleteStudent(id) {
+        console.log('🖱️ Delete clicked for ID:', id);
+        hideLoading(); // CRITICAL: Clear any active overlay
         const student = allStudents.find(s => s.id === id);
         if (!student) {
-            showToast('Student not found', 'error');
+            showError('Student not found');
             return;
         }
 
-        openConfirmModal({
+        console.log('⚠️ Delete confirmation triggered');
+        const confirmed = await showConfirm({
             title: 'Delete Student',
             message: `Are you sure you want to delete <strong>${safeText(student.name)}</strong>? This action cannot be undone.`,
             confirmText: 'Delete',
-            onConfirm: async () => {
-                try {
-                    showLoading();
-                    await hodAPI.deleteStudent(id);
-                    showToast('Student deleted successfully', 'success');
-                    closeModal();
-                    await loadInitialData();
-                } catch (err) {
-                    console.error('Delete student error:', err);
-                    showToast(err.message || 'Failed to delete student', 'error');
-                } finally {
-                    hideLoading();
-                }
-            }
+            confirmClass: 'btn-danger'
         });
+
+        console.log('🧨 Delete confirmed:', confirmed);
+
+        if (confirmed) {
+            try {
+                showLoading();
+                const user = getCurrentUser();
+                if (!user || !user.userId) {
+                    throw new Error('User not found');
+                }
+                
+                const role = String(user.role).toUpperCase();
+                
+                if (role === 'HOD') {
+                    await api.delete(`${API_PREFIX}/hod/students/${id}`);
+                } else {
+                    await api.delete(`${API_PREFIX}/teachers/${user.userId}/students/${id}`);
+                }
+                
+                showSuccess('Student deleted successfully');
+                await loadInitialData();
+            } catch (err) {
+                console.error('Delete student error:', err);
+                showError(err.message || 'Failed to delete student');
+            } finally {
+                hideLoading();
+            }
+        }
     }
 
     function showCreateModal() {
+        console.log('🎯 showCreateModal called');
+        hideLoading(); // CRITICAL: Clear any active overlay
         openStudentModal({ mode: 'create' });
     }
 
@@ -436,12 +597,13 @@
         loadInitialData();
     }
 
-    // Expose public API
+    // Expose public API BEFORE init
     window.studentsApp = {
         applyFilters,
         resetFilters,
         showCreateModal,
         refreshData,
+        submitStudent,
         prevPage: () => {
             if (currentPage > 1) {
                 currentPage--;
@@ -461,13 +623,19 @@
         editStudent,
         deleteStudent
     };
+    console.log('✅ window.studentsApp exposed:', Object.keys(window.studentsApp));
 
     // Initialize
     function init() {
-        const user = requireHod();
-        if (!user) return;
+        console.log('🔍 STUDENTS: students.js init() called');
+        const user = requireTeacher();
+        console.log('🔍 STUDENTS: requireTeacher() returned:', user);
+        if (!user) {
+            console.log('🔍 STUDENTS: No user returned from requireTeacher(), exiting init');
+            return;
+        }
 
-        showSkeleton();
+        console.log('🔍 STUDENTS: User validated, calling loadInitialData()');
         loadInitialData();
     }
 

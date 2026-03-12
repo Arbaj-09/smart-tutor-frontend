@@ -154,13 +154,47 @@
     <script>
         // Initialize Student Dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            if (!isAuthenticated() || !hasRole('STUDENT')) {
-                window.location.href = '/index.html';
-                return;
-            }
+            console.log('🔍 STUDENT: DOM loaded - checking auth...');
             
-            window.loadSidebar();
-            loadDashboardData();
+            // Wait a moment for localStorage to be ready
+            setTimeout(() => {
+                const userStr = localStorage.getItem("user");
+                console.log('🔍 STUDENT: User data from localStorage:', userStr);
+                
+                if (!userStr) {
+                    console.log('❌ STUDENT: No user found - redirecting to login');
+                    window.location.href = '/frontend/index.html';
+                    return;
+                }
+                
+                try {
+                    const user = JSON.parse(userStr);
+                    console.log('🔍 STUDENT: Parsed user:', user);
+                    
+                    if (!user.role || user.role !== 'STUDENT') {
+                        console.log('❌ STUDENT: Invalid role - redirecting to login. Role:', user.role);
+                        window.location.href = '/frontend/index.html';
+                        return;
+                    }
+                    
+                    console.log('✅ STUDENT: Auth check passed - loading dashboard');
+                    
+                    // Load sidebar first, then dashboard data
+                    window.loadSidebar().then(() => {
+                        console.log('✅ STUDENT: Sidebar loaded successfully');
+                        loadDashboardData();
+                    }).catch(error => {
+                        console.error('❌ STUDENT: Sidebar load failed:', error);
+                        // Still try to load dashboard data even if sidebar fails
+                        loadDashboardData();
+                    });
+                    
+                } catch (error) {
+                    console.error('❌ STUDENT: Failed to parse user data:', error);
+                    window.location.href = '/frontend/index.html';
+                    return;
+                }
+            }, 100); // Small delay to ensure localStorage is ready
         });
         
         async function loadDashboardData() {
@@ -288,7 +322,7 @@
                     try {
                         await authAPI.logout();
                         sessionStorage.removeItem('user');
-                        window.location.href = '../index.html';
+                        window.location.href = '/frontend/index.html';
                     } catch (error) {
                         console.error('Logout error:', error);
                         showToast('Logout failed', 'error');

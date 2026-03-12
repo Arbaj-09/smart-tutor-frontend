@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/main.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/professional.css">
+    <link rel="stylesheet" href="../../css/sidebar.css">
+    <link rel="stylesheet" href="../../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">My Profile</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshProfile()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="showEditModal()">
+                        <i class="fas fa-edit"></i>
+                        Edit Profile
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <section class="content">
+            <!-- Profile Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Profile Information</h3>
+                </div>
+                <div class="card-body">
+                    <div id="profileContent">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Loading profile...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Account Actions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button class="btn btn-outline btn-block" onclick="changePassword()">
+                                <i class="fas fa-key"></i>
+                                Change Password
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline btn-block" onclick="viewNotifications()">
+                                <i class="fas fa-bell"></i>
+                                Notification Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Profile</h3>
+                <button class="modal-close" onclick="closeEditModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label for="editName">Name</label>
+                        <input type="text" id="editName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        <input type="email" id="editEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhone">Phone</label>
+                        <input type="tel" id="editPhone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="editRollNo">Roll Number</label>
+                        <input type="text" id="editRollNo" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateProfile()">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Change Password</h3>
+                <button class="modal-close" onclick="closeChangePasswordModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <input type="password" id="currentPassword" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" class="form-control" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" class="form-control" required minlength="6">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="changePasswordSubmit()">
+                    <i class="fas fa-key"></i>
+                    Change Password
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="../../js/sidebar.js"></script>
+    <script src="../../js/utils.js"></script>
+    <script>
+        // Global variables
+        let currentStudentId = 1; // This should come from login/session
+        let studentData = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSidebar();
+            loadProfile();
+        });
+
+        async function loadProfile() {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/students/${currentStudentId}`);
+                if (!response.ok) throw new Error('Failed to load profile');
+                
+                studentData = await response.json();
+                renderProfile();
+                
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showToast('Error loading profile', 'error');
+                renderErrorState();
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderProfile() {
+            const profileContent = document.getElementById('profileContent');
+            
+            if (!studentData) {
+                renderErrorState();
+                return;
+            }
+            
+            profileContent.innerHTML = `
+                <div class="profile-view">
+                    <div class="profile-header">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="profile-info">
+                            <h4>${escapeHtml(studentData.name)}</h4>
+                            <p>Roll No: ${escapeHtml(studentData.rollNo)}</p>
+                            <span class="badge ${studentData.active ? 'badge-success' : 'badge-danger'}">
+                                ${studentData.active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-details">
+                        <div class="detail-section">
+                            <h5>Personal Information</h5>
+                            <div class="detail-row">
+                                <label>Full Name:</label>
+                                <span>${escapeHtml(studentData.name)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Email Address:</label>
+                                <span>${escapeHtml(studentData.email)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Phone Number:</label>
+                                <span>${escapeHtml(studentData.phone || 'Not provided')}</span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Roll Number:</label>
+                                <span>${escapeHtml(studentData.rollNo)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h5>Academic Information</h5>
+                            <div class="detail-row">
+                                <label>Class:</label>
+                                <span>${escapeHtml(studentData.className || 'Unknown')}</span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Division:</label>
+                                <span>${escapeHtml(studentData.divisionName || 'Unknown')}</span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Assigned Teacher:</label>
+                                <span>${escapeHtml(studentData.teacherName || 'Not assigned')}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h5>Account Information</h5>
+                            <div class="detail-row">
+                                <label>Account Status:</label>
+                                <span class="badge ${studentData.active ? 'badge-success' : 'badge-danger'}">
+                                    ${studentData.active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <label>Member Since:</label>
+                                <span>${formatDate(studentData.createdAt)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showEditModal() {
+            if (!studentData) {
+                showToast('Profile data not loaded', 'warning');
+                return;
+            }
+            
+            // Pre-fill form with current data
+            document.getElementById('editName').value = studentData.name || '';
+            document.getElementById('editEmail').value = studentData.email || '';
+            document.getElementById('editPhone').value = studentData.phone || '';
+            document.getElementById('editRollNo').value = studentData.rollNo || '';
+            
+            document.getElementById('editProfileModal').style.display = 'block';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editProfileModal').style.display = 'none';
+            document.getElementById('editProfileForm').reset();
+        }
+
+        async function updateProfile() {
+            const name = document.getElementById('editName').value;
+            const email = document.getElementById('editEmail').value;
+            const phone = document.getElementById('editPhone').value;
+            const rollNo = document.getElementById('editRollNo').value;
+            
+            if (!name || !email || !rollNo) {
+                showToast('Please fill all required fields', 'warning');
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/students/${currentStudentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        rollNo: rollNo
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to update profile');
+                
+                showToast('Profile updated successfully!', 'success');
+                closeEditModal();
+                loadProfile(); // Refresh profile
+                
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                showToast('Error updating profile', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function changePassword() {
+            document.getElementById('changePasswordModal').style.display = 'block';
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+            document.getElementById('changePasswordForm').reset();
+        }
+
+        async function changePasswordSubmit() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showToast('Please fill all fields', 'warning');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showToast('New passwords do not match', 'warning');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showToast('Password must be at least 6 characters', 'warning');
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch('http://localhost:8082/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: studentData.email,
+                        currentPassword: currentPassword,
+                        newPassword: newPassword
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to change password');
+                
+                showToast('Password changed successfully!', 'success');
+                closeChangePasswordModal();
+                
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showToast('Error changing password', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function viewNotifications() {
+            showToast('Notification settings coming soon', 'info');
+        }
+
+        function refreshProfile() {
+            loadProfile();
+            showToast('Profile refreshed', 'success');
+        }
+
+        function renderErrorState() {
+            const profileContent = document.getElementById('profileContent');
+            profileContent.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Error loading profile. Please try again.</p>
+                    <button class="btn btn-outline" onclick="loadProfile()">
+                        <i class="fas fa-retry"></i>
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showLoading() {
+            // Show loading state
+        }
+
+        function hideLoading() {
+            // Hide loading state
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${getToastIcon(type)}"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: 'check-circle',
+                error: 'exclamation-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+    </script>
+</body>
+</html>

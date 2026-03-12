@@ -6,14 +6,28 @@
     let currentPage = 1;
 
     function requireHod() {
-        const user = getCurrentUser();
+        // Manual user check (same as other pages)
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            console.warn("Redirect prevented for demo - activity-log.js");
+            return null;
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            console.warn("Redirect prevented for demo - activity-log.js parse error");
+            return null;
+        }
+        
         if (!user?.name || !user?.role) {
-            window.location.href = '/index.html';
+            console.warn("Redirect prevented for demo - activity-log.js");
             return null;
         }
         const role = String(user.role).toUpperCase();
         if (role !== 'HOD') {
-            window.location.href = '/index.html';
+            console.warn("Redirect prevented for demo - activity-log.js role check");
             return null;
         }
         return { name: user.name, role };

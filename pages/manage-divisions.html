@@ -48,10 +48,10 @@
                         <option value="">All Classes</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" onclick="window.divisionsApp?.applyFilters()">
+                <button class="btn btn-primary" onclick="window.divisionsApp.applyFilters()">
                     <i class="fas fa-filter"></i> Apply Filters
                 </button>
-                <button class="btn btn-outline" onclick="window.divisionsApp?.resetFilters()">
+                <button class="btn btn-outline" onclick="window.divisionsApp.resetFilters()">
                     <i class="fas fa-times"></i> Reset
                 </button>
             </div>
@@ -61,10 +61,10 @@
                 <div class="table-header">
                     <h2 class="table-title">Divisions</h2>
                     <div class="table-actions">
-                        <button class="btn btn-primary" onclick="window.divisionsApp?.showCreateModal()">
+                        <button class="btn btn-primary" onclick="window.divisionsApp.showCreateModal()">
                             <i class="fas fa-plus"></i> Add Division
                         </button>
-                        <button class="btn btn-outline" onclick="window.divisionsApp?.refreshData()">
+                        <button class="btn btn-outline" onclick="window.divisionsApp.refreshData()">
                             <i class="fas fa-sync-alt"></i> Refresh
                         </button>
                     </div>
@@ -119,11 +119,11 @@
                         <span id="paginationInfo">Showing 0 of 0 divisions</span>
                     </div>
                     <div class="pagination-right">
-                        <button class="pagination-btn" id="prevPageBtn" onclick="window.divisionsApp?.prevPage()" disabled>
+                        <button class="pagination-btn" id="prevPageBtn" onclick="window.divisionsApp.prevPage()" disabled>
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" onclick="window.divisionsApp?.nextPage()" disabled>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="window.divisionsApp.nextPage()" disabled>
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
@@ -144,15 +144,36 @@
         <p>Loading...</p>
     </div>
     
+    <script src="../js/utils.js"></script>
     <script src="../js/api.js"></script>
-    <script src="../js/sidebar-loader.js"></script>
-    <script src="../js/modal.js"></script>
     <script src="../js/toast.js"></script>
-    <script src="../js/pagination.js"></script>
-    <script src="../js/search.js"></script>
+    <script src="../js/modal.js"></script>
+    <script src="../js/auth-utils.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/logout-helper.js"></script>
     <script src="../js/divisions.js"></script>
     
     <script>
+        // Auth check
+        if (!isAuthenticated() || !hasRole('HOD')) {
+            window.location.href = '../index.html';
+        }
+
+        // Loading functions
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
+        }
+
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
         // Initialize page with sidebar
         document.addEventListener('DOMContentLoaded', function() {
             if (window.loadSidebar) {

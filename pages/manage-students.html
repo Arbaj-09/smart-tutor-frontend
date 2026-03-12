@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -54,10 +54,10 @@
                         <option value="">All Divisions</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" onclick="window.studentsApp?.applyFilters()">
+                <button class="btn btn-primary" onclick="window.studentsApp.applyFilters()">
                     <i class="fas fa-filter"></i> Apply Filters
                 </button>
-                <button class="btn btn-outline" onclick="window.studentsApp?.resetFilters()">
+                <button class="btn btn-outline" onclick="window.studentsApp.resetFilters()">
                     <i class="fas fa-times"></i> Reset
                 </button>
             </div>
@@ -67,10 +67,10 @@
                 <div class="table-header">
                     <h2 class="table-title">Students</h2>
                     <div class="table-actions">
-                        <button class="btn btn-primary" onclick="window.studentsApp?.showCreateModal()">
+                        <button class="btn btn-primary" onclick="window.studentsApp.showCreateModal()">
                             <i class="fas fa-plus"></i> Add Student
                         </button>
-                        <button class="btn btn-outline" onclick="window.studentsApp?.refreshData()">
+                        <button class="btn btn-outline" onclick="window.studentsApp.refreshData()">
                             <i class="fas fa-sync-alt"></i> Refresh
                         </button>
                     </div>
@@ -127,11 +127,11 @@
                         <span id="paginationInfo">Showing 0 of 0 students</span>
                     </div>
                     <div class="pagination-right">
-                        <button class="pagination-btn" id="prevPageBtn" onclick="window.studentsApp?.prevPage()" disabled>
+                        <button class="pagination-btn" id="prevPageBtn" onclick="window.studentsApp.prevPage()" disabled>
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" onclick="window.studentsApp?.nextPage()" disabled>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="window.studentsApp.nextPage()" disabled>
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
@@ -146,26 +146,50 @@
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
     
-    <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
         <p>Loading...</p>
     </div>
     
+    <script src="../js/auth-utils.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/sidebar-loader.js"></script>
-    <script src="../js/modal.js"></script>
     <script src="../js/toast.js"></script>
-    <script src="../js/pagination.js"></script>
-    <script src="../js/search.js"></script>
+    <script src="../js/modal.js"></script>
+    <script src="../js/fcm-config.js"></script>
     <script src="../js/students.js"></script>
     
     <script>
+        console.log('🔍 MANAGE-STUDENTS: Page loading...');
+        
+        // Manual auth check (same as dashboard)
+        const userStr = localStorage.getItem('user');
+        console.log('🔍 MANAGE-STUDENTS: Manual auth check - userStr:', userStr);
+        
+        if (!userStr) {
+            console.log('🔍 MANAGE-STUDENTS: No user found, redirecting to login');
+            window.location.href = '../index.html';
+        } else {
+            try {
+                const user = JSON.parse(userStr);
+                console.log('🔍 MANAGE-STUDENTS: Parsed user:', user);
+                
+                if (!user.role || (user.role !== 'HOD' && user.role !== 'TEACHER')) {
+                    console.log('🔍 MANAGE-STUDENTS: User not authorized, redirecting. Role:', user.role);
+                    window.location.href = '../index.html';
+                } else {
+                    console.log('🔍 MANAGE-STUDENTS: Auth check PASSED for role:', user.role);
+                }
+            } catch (error) {
+                console.log('🔍 MANAGE-STUDENTS: Failed to parse user, redirecting:', error);
+                window.location.href = '../index.html';
+            }
+        }
+
         // Initialize page with sidebar
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.loadSidebar) {
-                window.loadSidebar();
-            }
+            console.log('🔍 MANAGE-STUDENTS: DOM loaded, loading sidebar...');
+            window.loadSidebar();
         });
     </script>
 </body>

@@ -1,13 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes Management - SmartTutor</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/sidebar.css">
     <link rel="stylesheet" href="../css/modal.css">
+    <link rel="stylesheet" href="../css/notes.css">
 </head>
 <body>
     <!-- Sidebar -->
@@ -25,8 +27,8 @@
             </div>
             <div class="header-right">
                 <div class="header-actions">
-                    <button class="btn btn-primary" onclick="openUploadModal()">
-                        <i class="fas fa-upload"></i>
+                    <button class="btn btn-primary" onclick="openUploadModal()" id="uploadNoteBtn" style="display: none;">
+                        <i class="fas fa-cloud-upload-alt"></i>
                         Upload Note
                     </button>
                 </div>
@@ -85,9 +87,17 @@
         <div class="spinner"></div>
         <p>Loading...</p>
     </div>
-    
+
+    <script src="../js/auth-utils.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/modal.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+    <script src="../js/fcm-config.js"></script>
+    <script src="../js/toast.js"></script>
+    
     <script>
         let notesData = [];
         let classesData = [];
@@ -95,21 +105,84 @@
         let teachersData = [];
         let filteredNotes = [];
         
+        // Helper function to check user role
+        function hasRole(role) {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            return user.role === role;
+        }
+        
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            if (!isAuthenticated() || (!hasRole('TEACHER') && !hasRole('STUDENT'))) {
-                window.location.href = '/index.html';
-                return;
+            // Show upload button only for teachers
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const uploadBtn = document.getElementById('uploadNoteBtn');
+            if (uploadBtn) {
+                if (user.role === 'TEACHER') {
+                    uploadBtn.style.display = 'inline-flex';
+                } else {
+                    uploadBtn.style.display = 'none';
+                }
             }
             
+            // Initialize Firebase for notifications
+            if (typeof window.initializeFirebase === 'function') {
+                const messaging = window.initializeFirebase();
+                
+                // Request notification permission if not already granted
+                if (Notification.permission === 'default') {
+                    setTimeout(() => {
+                        if (typeof window.requestNotificationPermission === 'function') {
+                            window.requestNotificationPermission();
+                        }
+                    }, 2000);
+                }
+            }
+            
+            // Load teacher subject
+            loadTeacherSubject();
+            
+            // Load sidebar
             window.loadSidebar();
+            
+            // Load initial data
             loadInitialData();
         });
+        
+        // Load teacher's subject and auto-fill in form
+        async function loadTeacherSubject() {
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                
+                if (user.role === 'TEACHER' && user.userId) {
+                    // Get teacher details including subject
+                    const teacherResponse = await fetch(`http://localhost:8082/api/teachers/${user.userId}`);
+                    if (teacherResponse.ok) {
+                        const teacher = await teacherResponse.json();
+                        
+                        if (teacher.subject) {
+                            // Store teacher's subject for later use
+                            window.teacherSubject = teacher.subject;
+                            
+                            // Update subject field if modal is open
+                            const subjectField = document.getElementById('noteSubject');
+                            if (subjectField) {
+                                subjectField.value = teacher.subject;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading teacher subject:', error);
+            }
+        }
         
         async function loadInitialData() {
             try {
                 showLoading();
                 hideSkeleton();
+                
+                // Load teacher's subject first
+                await loadTeacherSubject();
                 
                 // Load all data
                 const [notesResponse, classesResponse, divisionsResponse, teachersResponse] = await Promise.all([
@@ -191,8 +264,8 @@
                     <div class="note-header">
                         <h3 class="note-title">${note.title}</h3>
                         <div class="note-meta">
-                            <span class="note-class">${note.classEntity?.className || 'N/A'}</span>
-                            <span class="note-division">${note.division?.divisionName || 'N/A'}</span>
+                            <span class="note-class">${note.className || 'N/A'}</span>
+                            <span class="note-division">${note.divisionName || 'N/A'}</span>
                         </div>
                     </div>
                     <div class="note-content">
@@ -212,11 +285,11 @@
                     <div class="note-footer">
                         <div class="note-teacher">
                             <i class="fas fa-chalkboard-teacher"></i>
-                            <span>${note.teacher?.name || 'N/A'}</span>
+                            <span>${note.teacherName || 'N/A'}</span>
                         </div>
                         <div class="note-date">
                             <i class="fas fa-calendar"></i>
-                            <span>${formatDate(note.createdAt)}</span>
+                            <span>${formatDate(note.createdAt || note.uploadedAt)}</span>
                         </div>
                         <div class="note-actions">
                             ${hasRole('TEACHER') ? `
@@ -252,9 +325,9 @@
             filteredNotes = notesData.filter(note => {
                 const matchesSearch = note.title.toLowerCase().includes(searchTerm) || 
                                      (note.description && note.description.toLowerCase().includes(searchTerm));
-                const matchesClass = !classFilter || note.classEntity?.id == classFilter;
-                const matchesDivision = !divisionFilter || note.division?.id == divisionFilter;
-                const matchesTeacher = !teacherFilter || note.teacher?.id == teacherFilter;
+                const matchesClass = !classFilter || note.className == classesData.find(c => c.id == classFilter)?.className;
+                const matchesDivision = !divisionFilter || note.divisionName == divisionsData.find(d => d.id == divisionFilter)?.divisionName;
+                const matchesTeacher = !teacherFilter || note.teacherName == teachersData.find(t => t.id == teacherFilter)?.name;
                 
                 return matchesSearch && matchesClass && matchesDivision && matchesTeacher;
             });
@@ -279,7 +352,16 @@
             showToast('Notes refreshed', 'success');
         }
         
-        function openUploadModal() {
+        function downloadFile(url, title) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = title;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function openUploadModal() {
             const modalHTML = `
                 <div class="modal-overlay active">
                     <div class="modal">
@@ -295,6 +377,12 @@
                                     <label for="noteTitle">Title *</label>
                                     <input type="text" id="noteTitle" name="title" required 
                                            placeholder="Enter note title" maxlength="200">
+                                </div>
+                                <div class="form-group">
+                                    <label for="noteSubject">Subject *</label>
+                                    <input type="text" id="noteSubject" name="subject" required 
+                                           placeholder="Loading subject..." readonly>
+                                    <small class="form-help">Your assigned subject will be automatically filled</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="noteDescription">Description</label>
@@ -331,6 +419,13 @@
             
             document.getElementById('modalContainer').innerHTML = modalHTML;
             populateModalSelects();
+            
+            // Auto-fill teacher's subject
+            const subjectField = document.getElementById('noteSubject');
+            if (subjectField && window.teacherSubject) {
+                subjectField.value = window.teacherSubject;
+            }
+            
             document.getElementById('uploadNoteForm').addEventListener('submit', handleUploadNote);
         }
         
@@ -354,8 +449,17 @@
             
             const formData = new FormData(event.target);
             
-            if (!formData.get('title') || !formData.get('classId') || !formData.get('divisionId') || !formData.get('file')) {
-                showToast('Title, Class, Division, and File are required', 'error');
+            // Add teacherId from logged-in user
+            const currentUser = getCurrentUser();
+            if (currentUser && currentUser.userId) {
+                formData.append("teacherId", currentUser.userId);
+            } else {
+                showToast('User not logged in or invalid user data', 'error');
+                return;
+            }
+            
+            if (!formData.get('title') || !formData.get('subject') || !formData.get('classId') || !formData.get('divisionId') || !formData.get('file')) {
+                showToast('Title, Subject, Class, Division, and File are required', 'error');
                 return;
             }
             

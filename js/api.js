@@ -1,14 +1,18 @@
 // ===== CENTRAL API HANDLER - NO SECURITY, NO SESSIONS =====
+// NOTE: API_BASE_URL is defined in api-handler.js
 
-const API_BASE_URL = 'http://localhost:8082';
 const API_PREFIX = '/api';
 
 // Global fetch wrapper with error handling - NO CREDENTIALS
 async function apiRequest(endpoint, options = {}) {
+    const API_BASE_URL = 'http://localhost:8082'; // Local constant
     const url = `${API_BASE_URL}${endpoint}`;
     
+    // Don't set Content-Type for FormData - let browser set it automatically
+    const isFormData = options.body instanceof FormData;
+    
     const defaultOptions = {
-        headers: {
+        headers: isFormData ? {} : {
             'Content-Type': 'application/json',
         },
     };
@@ -71,10 +75,22 @@ const api = {
     },
     
     upload: (endpoint, formData) => {
-        return apiRequest(endpoint, {
+        console.log('🚀 API: Uploading FormData to:', endpoint);
+        console.log('📋 API: FormData type:', formData.constructor.name);
+        
+        // Don't set any headers - let browser set multipart/form-data automatically
+        return fetch(`http://localhost:8082${endpoint}`, {
             method: 'POST',
-            body: formData,
-            headers: {}, // Let browser set Content-Type for FormData
+            body: formData
+        }).then(res => {
+            console.log('📡 API: Upload response status:', res.status);
+            if (!res.ok) {
+                throw new Error(`Upload failed with status: ${res.status}`);
+            }
+            return res.json();
+        }).catch(error => {
+            console.error('❌ API: Upload error:', error);
+            throw error;
         });
     },
 };
@@ -114,15 +130,123 @@ const hodAPI = {
     getActivityLogs: () => api.get(`${API_PREFIX}/hod/activity-logs`),
 };
 
-// ===== TEACHER API - NO SECURITY =====
+// ===== TEACHER API - SIMPLE LOGIN
 const teacherAPI = {
-    getDashboardStats: () => api.get(`${API_PREFIX}/teacher/dashboard`),
+    getDashboardStats: () => {
+        // Get user ID from stored user data
+        const userStr = localStorage.getItem('user') || localStorage.getItem('currentUser');
+        if (!userStr) {
+            throw new Error('User not found. Please login again.');
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            throw new Error('Invalid user data. Please login again.');
+        }
+        
+        const teacherId = user.userId || user.id;
+        if (!teacherId || teacherId === 'null' || teacherId === 'undefined') {
+            throw new Error('Teacher ID not found. Please login again.');
+        }
+        
+        return api.get(`${API_PREFIX}/teachers/${teacherId}/dashboard`);
+    },
     
     // Students
-    getAssignedStudents: () => api.get(`${API_PREFIX}/teacher/students`),
-    createStudent: (studentData) => api.post(`${API_PREFIX}/teacher/students`, studentData),
-    updateStudent: (id, studentData) => api.put(`${API_PREFIX}/teacher/students/${id}`, studentData),
-    deleteStudent: (id) => api.delete(`${API_PREFIX}/teacher/students/${id}`),
+    getAssignedStudents: () => {
+        console.log('getAssignedStudents called');
+        const userStr = localStorage.getItem('user') || localStorage.getItem('currentUser');
+        console.log('User data from storage:', userStr);
+        
+        if (!userStr) {
+            console.error('No user data found in localStorage');
+            throw new Error('User not found. Please login again.');
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+            console.log('Parsed user:', user);
+        } catch (error) {
+            console.error('Failed to parse user data:', error);
+            throw new Error('Invalid user data. Please login again.');
+        }
+        
+        const teacherId = user.userId || user.id;
+        console.log('Teacher ID extracted:', teacherId);
+        
+        if (!teacherId || teacherId === 'null' || teacherId === 'undefined') {
+            console.error('Invalid teacher ID:', teacherId);
+            throw new Error('Teacher ID not found. Please login again.');
+        }
+        
+        const apiUrl = `${API_PREFIX}/teachers/${teacherId}/students`;
+        console.log('Making API call to:', apiUrl);
+        
+        return api.get(apiUrl);
+    },
+    createStudent: (studentData) => {
+        const userStr = localStorage.getItem('user') || localStorage.getItem('currentUser');
+        if (!userStr) {
+            throw new Error('User not found. Please login again.');
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            throw new Error('Invalid user data. Please login again.');
+        }
+        
+        const teacherId = user.userId || user.id;
+        if (!teacherId || teacherId === 'null' || teacherId === 'undefined') {
+            throw new Error('Teacher ID not found. Please login again.');
+        }
+        
+        return api.post(`${API_PREFIX}/teachers/${teacherId}/students`, studentData);
+    },
+    updateStudent: (id, studentData) => {
+        const userStr = localStorage.getItem('user') || localStorage.getItem('currentUser');
+        if (!userStr) {
+            throw new Error('User not found. Please login again.');
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            throw new Error('Invalid user data. Please login again.');
+        }
+        
+        const teacherId = user.userId || user.id;
+        if (!teacherId || teacherId === 'null' || teacherId === 'undefined') {
+            throw new Error('Teacher ID not found. Please login again.');
+        }
+        
+        return api.put(`${API_PREFIX}/teachers/${teacherId}/students/${id}`, studentData);
+    },
+    deleteStudent: (id) => {
+        const userStr = localStorage.getItem('user') || localStorage.getItem('currentUser');
+        if (!userStr) {
+            throw new Error('User not found. Please login again.');
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            throw new Error('Invalid user data. Please login again.');
+        }
+        
+        const teacherId = user.userId || user.id;
+        if (!teacherId || teacherId === 'null' || teacherId === 'undefined') {
+            throw new Error('Teacher ID not found. Please login again.');
+        }
+        
+        return api.delete(`${API_PREFIX}/teachers/${teacherId}/students/${id}`);
+    },
 };
 
 // ===== STUDENT API - NO SECURITY =====
@@ -243,10 +367,11 @@ function redirectToDashboard(role) {
 
 // Handle authentication errors
 function handleAuthError(error) {
+    console.log('🚨 api.js handleAuthError called:', error.message);
+    // Prevent automatic redirect during demo
     if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        localStorage.removeItem('user');
-        sessionStorage.removeItem('user');
-        window.location.href = '/index.html';
+        console.warn("Auth redirect prevented during demo - api.js handleAuthError");
+        // OLD CODE: window.location.href = '/index.html';
     }
 }
 

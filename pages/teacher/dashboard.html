@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/main.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/professional.css">
+    <link rel="stylesheet" href="../../css/sidebar.css">
+    <link rel="stylesheet" href="../../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Teacher Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <div class="notification-bell" id="notificationBell">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <section class="content">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalStudents">-</h3>
+                        <p>Total Students</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="activeStudents">-</h3>
+                        <p>Active Students</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalNotes">-</h3>
+                        <p>Notes Uploaded</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalQuizzes">-</h3>
+                        <p>Quizzes Created</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class & Division Selection -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>My Classes & Divisions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="classSelect">Select Class</label>
+                                <select id="classSelect" class="form-control">
+                                    <option value="">Loading classes...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="divisionSelect">Select Division</label>
+                                <select id="divisionSelect" class="form-control">
+                                    <option value="">Select class first</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-primary" onclick="loadStudents()">
+                            <i class="fas fa-search"></i>
+                            Load Students
+                        </button>
+                        <button class="btn btn-success" onclick="showUploadNotesModal()">
+                            <i class="fas fa-upload"></i>
+                            Upload Notes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Recent Activity</h3>
+                </div>
+                <div class="card-body">
+                    <div id="recentActivity" class="activity-list">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Loading recent activity...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Upload Notes Modal -->
+    <div id="uploadNotesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Upload Notes</h3>
+                <button class="modal-close" onclick="closeUploadNotesModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadNotesForm">
+                    <div class="form-group">
+                        <label for="notesTitle">Title</label>
+                        <input type="text" id="notesTitle" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="notesSubject">Subject</label>
+                        <input type="text" id="notesSubject" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="notesDescription">Description</label>
+                        <textarea id="notesDescription" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="notesFile">File</label>
+                        <input type="file" id="notesFile" class="form-control" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png" required>
+                        <small class="text-muted">Allowed: PDF, DOC, DOCX, PPT, PPTX, JPG, JPEG, PNG (Max 10MB)</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeUploadNotesModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="uploadNotes()">
+                    <i class="fas fa-upload"></i>
+                    Upload Notes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="../../js/sidebar.js"></script>
+    <script src="../../js/utils.js"></script>
+    <script>
+        // Global variables
+        let currentTeacherId = 1; // This should come from login/session
+        let classesData = [];
+        let divisionsData = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSidebar();
+            loadDashboard();
+            loadTeacherClasses();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('classSelect').addEventListener('change', loadDivisions);
+            document.getElementById('notificationBell').addEventListener('click', showNotifications);
+        }
+
+        async function loadDashboard() {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/teachers/${currentTeacherId}/dashboard`);
+                if (!response.ok) throw new Error('Failed to load dashboard');
+                
+                const data = await response.json();
+                
+                // Update stats
+                document.getElementById('totalStudents').textContent = data.totalStudents || 0;
+                document.getElementById('activeStudents').textContent = data.activeStudents || 0;
+                
+                // Load additional stats
+                await loadAdditionalStats();
+                
+                // Load recent activity
+                loadRecentActivity(data.recentActivity || []);
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showToast('Error loading dashboard data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function loadAdditionalStats() {
+            try {
+                // Load notes count
+                const notesResponse = await fetch(`http://localhost:8082/api/notes/teacher/${currentTeacherId}`);
+                if (notesResponse.ok) {
+                    const notes = await notesResponse.json();
+                    document.getElementById('totalNotes').textContent = notes.length || 0;
+                }
+                
+                // Load quizzes count
+                const quizzesResponse = await fetch(`http://localhost:8082/api/quizzes/teacher/${currentTeacherId}`);
+                if (quizzesResponse.ok) {
+                    const quizzes = await quizzesResponse.json();
+                    document.getElementById('totalQuizzes').textContent = quizzes.length || 0;
+                }
+            } catch (error) {
+                console.error('Error loading additional stats:', error);
+            }
+        }
+
+        function loadRecentActivity(activities) {
+            const container = document.getElementById('recentActivity');
+            
+            if (!activities || activities.length === 0) {
+                container.innerHTML = '<p class="text-muted">No recent activity</p>';
+                return;
+            }
+            
+            container.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas fa-${getActivityIcon(activity.action)}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-text">${activity.details}</div>
+                        <div class="activity-time">${formatDateTime(activity.timestamp)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getActivityIcon(action) {
+            const icons = {
+                'CREATE_STUDENT': 'user-plus',
+                'UPDATE_STUDENT': 'user-edit',
+                'DELETE_STUDENT': 'user-times',
+                'UPLOAD_NOTES': 'file-upload',
+                'CREATE_QUIZ': 'clipboard-plus',
+                'MARK_ATTENDANCE': 'check-circle'
+            };
+            return icons[action] || 'circle';
+        }
+
+        async function loadTeacherClasses() {
+            try {
+                const response = await fetch(`http://localhost:8082/api/teachers/${currentTeacherId}/classes`);
+                if (!response.ok) throw new Error('Failed to load classes');
+                
+                classesData = await response.json();
+                const classSelect = document.getElementById('classSelect');
+                
+                classSelect.innerHTML = '<option value="">Select a class</option>';
+                classesData.forEach(cls => {
+                    classSelect.innerHTML += `<option value="${cls.id}">${cls.className}</option>`;
+                });
+                
+            } catch (error) {
+                console.error('Error loading classes:', error);
+                showToast('Error loading classes', 'error');
+            }
+        }
+
+        async function loadDivisions() {
+            const classId = document.getElementById('classSelect').value;
+            const divisionSelect = document.getElementById('divisionSelect');
+            
+            if (!classId) {
+                divisionSelect.innerHTML = '<option value="">Select class first</option>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:8082/api/teachers/${currentTeacherId}/divisions?classId=${classId}`);
+                if (!response.ok) throw new Error('Failed to load divisions');
+                
+                divisionsData = await response.json();
+                divisionSelect.innerHTML = '<option value="">Select a division</option>';
+                divisionsData.forEach(division => {
+                    divisionSelect.innerHTML += `<option value="${division.id}">${division.divisionName}</option>`;
+                });
+                
+            } catch (error) {
+                console.error('Error loading divisions:', error);
+                showToast('Error loading divisions', 'error');
+            }
+        }
+
+        function showUploadNotesModal() {
+            const classId = document.getElementById('classSelect').value;
+            const divisionId = document.getElementById('divisionSelect').value;
+            
+            if (!classId || !divisionId) {
+                showToast('Please select both class and division', 'warning');
+                return;
+            }
+            
+            document.getElementById('uploadNotesModal').style.display = 'block';
+        }
+
+        function closeUploadNotesModal() {
+            document.getElementById('uploadNotesModal').style.display = 'none';
+            document.getElementById('uploadNotesForm').reset();
+        }
+
+        async function uploadNotes() {
+            const classId = document.getElementById('classSelect').value;
+            const divisionId = document.getElementById('divisionSelect').value;
+            const title = document.getElementById('notesTitle').value;
+            const subject = document.getElementById('notesSubject').value;
+            const description = document.getElementById('notesDescription').value;
+            const fileInput = document.getElementById('notesFile');
+            
+            if (!classId || !divisionId || !title || !subject || !description || !fileInput.files[0]) {
+                showToast('Please fill all fields and select a file', 'warning');
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('subject', subject);
+                formData.append('description', description);
+                formData.append('classId', classId);
+                formData.append('divisionId', divisionId);
+                formData.append('file', fileInput.files[0]);
+                formData.append('teacherId', currentTeacherId);
+                
+                showLoading();
+                const response = await fetch('http://localhost:8082/api/notes/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Failed to upload notes');
+                
+                showToast('Notes uploaded successfully!', 'success');
+                closeUploadNotesModal();
+                loadDashboard(); // Refresh dashboard
+                
+            } catch (error) {
+                console.error('Error uploading notes:', error);
+                showToast('Error uploading notes', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function loadStudents() {
+            const classId = document.getElementById('classSelect').value;
+            const divisionId = document.getElementById('divisionSelect').value;
+            
+            if (!classId || !divisionId) {
+                showToast('Please select both class and division', 'warning');
+                return;
+            }
+            
+            // Redirect to students page with filters
+            window.location.href = `../manage-students.html?classId=${classId}&divisionId=${divisionId}&teacherId=${currentTeacherId}`;
+        }
+
+        function refreshDashboard() {
+            loadDashboard();
+            showToast('Dashboard refreshed', 'success');
+        }
+
+        async function showNotifications() {
+            try {
+                const response = await fetch(`http://localhost:8082/api/notifications/role/TEACHER/user/${currentTeacherId}`);
+                if (!response.ok) throw new Error('Failed to load notifications');
+                
+                const notifications = await response.json();
+                // Show notifications dropdown/modal
+                console.log('Notifications:', notifications);
+                
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+
+        // Utility functions
+        function showLoading() {
+            // Show loading spinner
+        }
+
+        function hideLoading() {
+            // Hide loading spinner
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${getToastIcon(type)}"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: 'check-circle',
+                error: 'exclamation-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        function formatDateTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

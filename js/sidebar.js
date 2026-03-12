@@ -7,6 +7,40 @@ let sidebarState = {
     currentRole: null,
 };
 
+// Get current user from localStorage
+function getCurrentUser() {
+    try {
+        const userStr = localStorage.getItem('currentUser') || localStorage.getItem('user');
+        return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+        console.error('Error parsing user data:', error);
+        return null;
+    }
+}
+
+// Utility functions (fallbacks if not globally available)
+function showLoading() {
+    if (typeof window.showLoading === 'function') {
+        window.showLoading();
+    } else {
+        console.log('Loading...');
+    }
+}
+
+function hideLoading() {
+    if (typeof window.hideLoading === 'function') {
+        window.hideLoading();
+    }
+}
+
+function showToast(message, type = 'info') {
+    if (typeof window.showToast === 'function') {
+        window.showToast(message, type);
+    } else {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+}
+
 // Initialize sidebar
 async function initializeSidebar() {
     try {
@@ -14,27 +48,31 @@ async function initializeSidebar() {
         const user = getCurrentUser();
         if (!user) {
             window.location.href = '../index.html';
+            return;
+        }
+    
+        sidebarState.userRole = user.role;
+        
+        // Load sidebar HTML
+        await loadSidebarHTML();
+        
+        // Setup event listeners
+        setupSidebarEvents();
+        
+        // Show role-based menu
+        showRoleBasedMenu();
+        
+        // Update user info
+        updateUserInfo(user);
+        
+        // Set active navigation
+        setActiveNavigation();
+        
+        // Load notification count
+        loadNotificationCount();
+    } catch (error) {
+        console.error('Failed to initialize sidebar:', error);
     }
-    
-    sidebarState.userRole = user.role;
-    
-    // Load sidebar HTML
-    await loadSidebarHTML();
-    
-    // Setup event listeners
-    setupSidebarEvents();
-    
-    // Show role-based menu
-    showRoleBasedMenu();
-    
-    // Update user info
-    updateUserInfo(user);
-    
-    // Set active navigation
-    setActiveNavigation();
-    
-    // Load notification count
-    loadNotificationCount();
 }
 
 // Load sidebar HTML
@@ -93,13 +131,24 @@ function showRoleBasedMenu() {
     switch (sidebarState.userRole) {
         case 'HOD':
             if (hodMenu) hodMenu.style.display = 'block';
+            updateDashboardLink('../dashboard/hod-dashboard.html');
             break;
         case 'TEACHER':
             if (teacherMenu) teacherMenu.style.display = 'block';
+            updateDashboardLink('../dashboard/teacher-dashboard.html');
             break;
         case 'STUDENT':
             if (studentMenu) studentMenu.style.display = 'block';
+            updateDashboardLink('../dashboard/student-dashboard.html');
             break;
+    }
+}
+
+// Update dashboard link based on role
+function updateDashboardLink(dashboardPath) {
+    const dashboardLink = document.querySelector('[data-page="dashboard"]');
+    if (dashboardLink) {
+        dashboardLink.href = dashboardPath;
     }
 }
 
@@ -233,8 +282,16 @@ function updateUserInfo(user) {
 async function handleLogout() {
     try {
         showLoading();
-        await authAPI.logout();
+        
+        // Try to call logout API if available
+        if (typeof window.authAPI !== 'undefined' && window.authAPI.logout) {
+            await window.authAPI.logout();
+        } else if (typeof window.api !== 'undefined' && window.api.auth && window.api.auth.logout) {
+            await window.api.auth.logout();
+        }
+        
         sessionStorage.removeItem('user');
+        localStorage.clear();
         window.location.href = '../index.html';
     } catch (error) {
         console.error('Logout error:', error);

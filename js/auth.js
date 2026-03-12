@@ -244,7 +244,15 @@ async function login(credentials) {
             
             // Redirect to dashboard
             setTimeout(() => {
-                redirectToDashboard(response.role);
+                if (response.role === 'TEACHER') {
+                    window.location.href = 'pages/dashboard/teacher-dashboard.html';
+                } else if (response.role === 'HOD') {
+                    window.location.href = 'pages/dashboard/hod-dashboard.html';
+                } else if (response.role === 'STUDENT') {
+                    window.location.href = 'pages/dashboard/student-dashboard.html';
+                } else {
+                    window.location.href = 'pages/dashboard/hod-dashboard.html';
+                }
             }, 1000);
         }
         
@@ -281,7 +289,7 @@ async function logout() {
         hideLoading();
         
         // Redirect to login
-        window.location.href = '/index.html';
+        window.location.href = '../index.html';
     }
 }
 

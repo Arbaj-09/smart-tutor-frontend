@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/main.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/professional.css">
+    <link rel="stylesheet" href="../../css/sidebar.css">
+    <link rel="stylesheet" href="../../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Student Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <div class="notification-bell" id="notificationBell">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationBadge">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <section class="content">
+            <!-- Welcome Card -->
+            <div class="welcome-card">
+                <div class="welcome-content">
+                    <h2>Welcome back, <span id="studentName">Student</span>!</h2>
+                    <p>Here's your learning progress and recent updates</p>
+                </div>
+                <div class="welcome-actions">
+                    <button class="btn btn-primary" onclick="viewProfile()">
+                        <i class="fas fa-user"></i>
+                        View Profile
+                    </button>
+                    <button class="btn btn-outline" onclick="changePassword()">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalNotes">-</h3>
+                        <p>Available Notes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalQuizzes">-</h3>
+                        <p>Available Quizzes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="completedQuizzes">-</h3>
+                        <p>Completed Quizzes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="attendancePercentage">-</h3>
+                        <p>Attendance</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Notes -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Recent Notes</h3>
+                    <button class="btn btn-sm btn-outline" onclick="viewAllNotes()">
+                        View All
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="recentNotes" class="notes-list">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Loading notes...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Notifications -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Recent Notifications</h3>
+                    <button class="btn btn-sm btn-outline" onclick="viewAllNotifications()">
+                        View All
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="recentNotifications" class="notifications-list">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Loading notifications...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>My Profile</h3>
+                <button class="modal-close" onclick="closeProfileModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="profileContent">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Loading profile...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeProfileModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Change Password</h3>
+                <button class="modal-close" onclick="closeChangePasswordModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <input type="password" id="currentPassword" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" class="form-control" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" class="form-control" required minlength="6">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="changePasswordSubmit()">
+                    <i class="fas fa-key"></i>
+                    Change Password
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="../../js/sidebar.js"></script>
+    <script src="../../js/utils.js"></script>
+    <script>
+        // Global variables
+        let currentStudentId = 1; // This should come from login/session
+        let studentData = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSidebar();
+            loadDashboard();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('notificationBell').addEventListener('click', showNotifications);
+        }
+
+        async function loadDashboard() {
+            try {
+                showLoading();
+                
+                // Load student profile
+                await loadStudentProfile();
+                
+                // Load notes
+                await loadRecentNotes();
+                
+                // Load notifications
+                await loadRecentNotifications();
+                
+                // Load stats
+                await loadStats();
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showToast('Error loading dashboard data', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function loadStudentProfile() {
+            try {
+                const response = await fetch(`http://localhost:8082/api/students/${currentStudentId}`);
+                if (!response.ok) throw new Error('Failed to load profile');
+                
+                studentData = await response.json();
+                document.getElementById('studentName').textContent = studentData.name || 'Student';
+                
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+
+        async function loadRecentNotes() {
+            try {
+                const response = await fetch(`http://localhost:8082/api/notes/student/${currentStudentId}`);
+                if (!response.ok) throw new Error('Failed to load notes');
+                
+                const notes = await response.json();
+                const container = document.getElementById('recentNotes');
+                
+                if (!notes || notes.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No notes available</p>';
+                    return;
+                }
+                
+                // Show only 5 most recent notes
+                const recentNotes = notes.slice(0, 5);
+                container.innerHTML = recentNotes.map(note => `
+                    <div class="note-item">
+                        <div class="note-icon">
+                            <i class="fas fa-file-${getFileIcon(note.fileType)}"></i>
+                        </div>
+                        <div class="note-content">
+                            <div class="note-title">${note.title}</div>
+                            <div class="note-subject">${note.subject}</div>
+                            <div class="note-meta">
+                                <span>By: ${note.teacher?.name || 'Unknown'}</span>
+                                <span>${formatDateTime(note.uploadedAt)}</span>
+                            </div>
+                        </div>
+                        <div class="note-actions">
+                            <button class="btn btn-sm btn-outline" onclick="downloadNote('${note.filePath}', '${note.fileName}')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading notes:', error);
+                document.getElementById('recentNotes').innerHTML = '<p class="text-danger">Error loading notes</p>';
+            }
+        }
+
+        async function loadRecentNotifications() {
+            try {
+                const response = await fetch(`http://localhost:8082/api/notifications/role/STUDENT/user/${currentStudentId}`);
+                if (!response.ok) throw new Error('Failed to load notifications');
+                
+                const notifications = await response.json();
+                const container = document.getElementById('recentNotifications');
+                
+                if (!notifications || notifications.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No notifications</p>';
+                    return;
+                }
+                
+                // Show only 5 most recent notifications
+                const recentNotifications = notifications.slice(0, 5);
+                container.innerHTML = recentNotifications.map(notification => `
+                    <div class="notification-item ${notification.isRead ? 'read' : 'unread'}">
+                        <div class="notification-icon">
+                            <i class="fas fa-${getNotificationIcon(notification.title)}"></i>
+                        </div>
+                        <div class="notification-content">
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-body">${notification.body}</div>
+                            <div class="notification-time">${formatDateTime(notification.createdAt)}</div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Update notification badge
+                const unreadCount = notifications.filter(n => !n.isRead).length;
+                document.getElementById('notificationBadge').textContent = unreadCount;
+                
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                document.getElementById('recentNotifications').innerHTML = '<p class="text-danger">Error loading notifications</p>';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                // Get student's class and division
+                if (!studentData) return;
+                
+                // Load notes count
+                const notesResponse = await fetch(`http://localhost:8082/api/notes/student/${currentStudentId}`);
+                if (notesResponse.ok) {
+                    const notes = await notesResponse.json();
+                    document.getElementById('totalNotes').textContent = notes.length || 0;
+                }
+                
+                // Load quizzes
+                const quizzesResponse = await fetch(`http://localhost:8082/api/quizzes/student/${currentStudentId}`);
+                if (quizzesResponse.ok) {
+                    const quizzes = await quizzesResponse.json();
+                    document.getElementById('totalQuizzes').textContent = quizzes.length || 0;
+                }
+                
+                // Load quiz attempts
+                const attemptsResponse = await fetch(`http://localhost:8082/api/quiz/attempts/student/${currentStudentId}`);
+                if (attemptsResponse.ok) {
+                    const attempts = await attemptsResponse.json();
+                    document.getElementById('completedQuizzes').textContent = attempts.length || 0;
+                }
+                
+                // Load attendance
+                const attendanceResponse = await fetch(`http://localhost:8082/api/attendance/student/${currentStudentId}/percentage`);
+                if (attendanceResponse.ok) {
+                    const attendance = await attendanceResponse.json();
+                    document.getElementById('attendancePercentage').textContent = 
+                        attendance.percentage ? `${attendance.percentage}%` : '0%';
+                }
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function viewProfile() {
+            if (!studentData) {
+                showToast('Profile data not loaded', 'warning');
+                return;
+            }
+            
+            const profileContent = document.getElementById('profileContent');
+            profileContent.innerHTML = `
+                <div class="profile-view">
+                    <div class="profile-header">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="profile-info">
+                            <h4>${studentData.name}</h4>
+                            <p>Roll No: ${studentData.rollNo}</p>
+                        </div>
+                    </div>
+                    <div class="profile-details">
+                        <div class="detail-row">
+                            <label>Email:</label>
+                            <span>${studentData.email}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Phone:</label>
+                            <span>${studentData.phone || 'Not provided'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Class:</label>
+                            <span>${studentData.className || 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Division:</label>
+                            <span>${studentData.divisionName || 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Teacher:</label>
+                            <span>${studentData.teacherName || 'Not assigned'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Status:</label>
+                            <span class="badge ${studentData.active ? 'badge-success' : 'badge-danger'}">
+                                ${studentData.active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('profileModal').style.display = 'block';
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').style.display = 'none';
+        }
+
+        function changePassword() {
+            document.getElementById('changePasswordModal').style.display = 'block';
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+            document.getElementById('changePasswordForm').reset();
+        }
+
+        async function changePasswordSubmit() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showToast('Please fill all fields', 'warning');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showToast('New passwords do not match', 'warning');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showToast('Password must be at least 6 characters', 'warning');
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch('http://localhost:8082/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: studentData.email,
+                        currentPassword: currentPassword,
+                        newPassword: newPassword
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to change password');
+                
+                showToast('Password changed successfully!', 'success');
+                closeChangePasswordModal();
+                
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showToast('Error changing password', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function viewAllNotes() {
+            window.location.href = 'notes.html';
+        }
+
+        function viewAllNotifications() {
+            window.location.href = 'notifications.html';
+        }
+
+        function downloadNote(filePath, fileName) {
+            // Create download link
+            const link = document.createElement('a');
+            link.href = `http://localhost:8082/api/files/download/${filePath}`;
+            link.download = fileName;
+            link.click();
+        }
+
+        async function showNotifications() {
+            // This would show a dropdown with all notifications
+            console.log('Show notifications dropdown');
+        }
+
+        function refreshDashboard() {
+            loadDashboard();
+            showToast('Dashboard refreshed', 'success');
+        }
+
+        // Utility functions
+        function getFileIcon(fileType) {
+            const icons = {
+                'pdf': 'pdf',
+                'doc': 'word',
+                'docx': 'word',
+                'ppt': 'powerpoint',
+                'pptx': 'powerpoint',
+                'jpg': 'image',
+                'jpeg': 'image',
+                'png': 'image'
+            };
+            return icons[fileType?.toLowerCase()] || 'alt';
+        }
+
+        function getNotificationIcon(title) {
+            if (title.includes('Notes')) return 'book';
+            if (title.includes('Quiz')) return 'clipboard-list';
+            if (title.includes('Attendance')) return 'calendar-check';
+            return 'bell';
+        }
+
+        function showLoading() {
+            // Show loading spinner
+        }
+
+        function hideLoading() {
+            // Hide loading spinner
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${getToastIcon(type)}"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: 'check-circle',
+                error: 'exclamation-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        function formatDateTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

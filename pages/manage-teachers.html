@@ -6,9 +6,10 @@
     <title>Manage Teachers - SmartTutor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/professional.css">
     <link rel="stylesheet" href="../css/sidebar.css">
-    <link rel="stylesheet" href="../css/modal.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
 </head>
 <body>
     <!-- Sidebar -->
@@ -26,7 +27,7 @@
             </div>
             <div class="header-right">
                 <div class="header-actions">
-                    <button class="btn btn-primary" id="addTeacherBtn">
+                    <button class="btn btn-primary" onclick="window.teachersApp.showCreateModal()">
                         <i class="fas fa-plus"></i>
                         Add Teacher
                     </button>
@@ -54,11 +55,11 @@
                         <option value="">All Divisions</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" onclick="applyFilters()">
+                <button class="btn btn-primary" onclick="window.teachersApp.applyFilters()">
                     <i class="fas fa-filter"></i>
                     Apply Filters
                 </button>
-                <button class="btn btn-outline" onclick="resetFilters()">
+                <button class="btn btn-outline" onclick="window.teachersApp.resetFilters()">
                     <i class="fas fa-times"></i>
                     Reset
                 </button>
@@ -69,11 +70,11 @@
                 <div class="table-header">
                     <h2 class="table-title">Teachers</h2>
                     <div class="table-actions">
-                        <button class="btn btn-primary" onclick="showCreateModal()">
+                        <button class="btn btn-primary" onclick="window.teachersApp.showCreateModal()">
                             <i class="fas fa-plus"></i>
                             Add Teacher
                         </button>
-                        <button class="btn btn-outline" onclick="refreshData()">
+                        <button class="btn btn-outline" onclick="window.teachersApp.refreshData()">
                             <i class="fas fa-sync-alt"></i>
                             Refresh
                         </button>
@@ -88,8 +89,10 @@
                         <div class="skeleton-cell"></div>
                         <div class="skeleton-cell"></div>
                         <div class="skeleton-cell"></div>
+                        <div class="skeleton-cell"></div>
                     </div>
                     <div class="skeleton-row">
+                        <div class="skeleton-cell"></div>
                         <div class="skeleton-cell"></div>
                         <div class="skeleton-cell"></div>
                         <div class="skeleton-cell"></div>
@@ -105,6 +108,7 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Email</th>
+                                <th>Subject</th>
                                 <th>Class</th>
                                 <th>Division</th>
                                 <th>Actions</th>
@@ -131,11 +135,11 @@
                         <span id="paginationInfo">Showing 0 of 0 teachers</span>
                     </div>
                     <div class="pagination-right">
-                        <button class="pagination-btn" id="prevPageBtn" onclick="window.teachersApp?.prevPage()" disabled>
+                        <button class="pagination-btn" id="prevPageBtn" onclick="window.teachersApp.prevPage()" disabled>
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" onclick="window.teachersApp?.nextPage()" disabled>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="window.teachersApp.nextPage()" disabled>
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
@@ -155,15 +159,36 @@
         <p>Loading...</p>
     </div>
     
+    <script src="../js/utils.js"></script>
     <script src="../js/api.js"></script>
-    <script src="../js/sidebar-loader.js"></script>
-    <script src="../js/modal.js"></script>
     <script src="../js/toast.js"></script>
-    <script src="../js/pagination.js"></script>
-    <script src="../js/search.js"></script>
-    <script src="../js/teachers-new.js"></script>
+    <script src="../js/modal.js"></script>
+    <script src="../js/auth-utils.js"></script>
+    <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/logout-helper.js"></script>
+    <script src="../js/teachers.js"></script>
     
     <script>
+        // Auth check
+        if (!isAuthenticated() || !hasRole('HOD')) {
+            window.location.href = '../index.html';
+        }
+
+        // Loading functions
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
+        }
+
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
         // Initialize page with sidebar
         document.addEventListener('DOMContentLoaded', function() {
             if (window.loadSidebar) {

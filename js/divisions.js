@@ -1,20 +1,36 @@
 (function () {
+    console.log('✅ divisions.js loaded');
     const PAGE_SIZE = 10;
 
     let allDivisions = [];
     let allClasses = [];
     let filteredDivisions = [];
     let currentPage = 1;
+    let editingDivisionId = null;
 
     function requireHod() {
-        const user = getCurrentUser();
+        // Manual user check (same as other pages)
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            console.warn("Redirect prevented for demo - divisions.js");
+            return null;
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            console.warn("Redirect prevented for demo - divisions.js parse error");
+            return null;
+        }
+        
         if (!user?.name || !user?.role) {
-            window.location.href = '/index.html';
+            console.warn("Redirect prevented for demo - divisions.js");
             return null;
         }
         const role = String(user.role).toUpperCase();
         if (role !== 'HOD') {
-            window.location.href = '/index.html';
+            console.warn("Redirect prevented for demo - divisions.js role check");
             return null;
         }
         return { name: user.name, role };
@@ -24,24 +40,32 @@
         return document.getElementById(id);
     }
 
-    function showSkeleton() {
-        const skeleton = $('skeletonLoader');
-        if (skeleton) skeleton.style.display = '';
-    }
-
-    function hideSkeleton() {
-        const skeleton = $('skeletonLoader');
-        if (skeleton) skeleton.style.display = 'none';
-    }
-
     function safeText(v) {
         return String(v ?? '').replace(/[&<>"']/g, (c) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;',
-        }[c]));
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'N/A';
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return 'N/A';
+        }
+    }
+
+    // Calculate student count for a division (placeholder for now)
+    function getStudentCount(division) {
+        // Since backend doesn't provide student count, return placeholder
+        // In future, this could be calculated from students API
+        return division.studentCount || 'N/A';
     }
 
     function applyFilters() {
@@ -73,28 +97,50 @@
         return {
             start,
             end,
-            rows: filteredDivisions.slice(start, end),
             total: filteredDivisions.length,
+            rows: filteredDivisions.slice(start, end),
         };
     }
 
     function renderTable() {
+        console.log('🎨 renderTable called');
         const tbody = $('divisionsTableBody');
+        const skeleton = $('skeletonLoader');
         const wrapper = $('tableWrapper');
         const empty = $('emptyState');
-        if (!tbody) return;
+        
+        console.log('🔍 divisionsTableBody:', tbody);
+        console.log('🔍 skeletonLoader:', skeleton);
+        console.log('🔍 tableWrapper:', wrapper);
+
+        if (!tbody) {
+            console.error('❌ DOM ID not found: divisionsTableBody');
+            return;
+        }
+
+        if (skeleton) {
+            skeleton.style.display = 'none';
+            console.log('🧪 Skeleton hidden:', getComputedStyle(skeleton).display === 'none');
+            console.log('🧪 Skeleton pointerEvents:', getComputedStyle(skeleton).pointerEvents);
+        }
+
+        if (wrapper) {
+            wrapper.style.display = 'block';
+            console.log('🧪 Wrapper visible:', getComputedStyle(wrapper).display === 'block');
+            console.log('🧪 Wrapper pointerEvents:', getComputedStyle(wrapper).pointerEvents);
+        }
 
         const page = getPageSlice();
+        console.log('🧩 Rendering rows:', page.rows.length);
+        console.log('➡ Row data sample:', page.rows[0]);
 
         if (page.total === 0) {
-            tbody.innerHTML = '';
             if (wrapper) wrapper.style.display = 'none';
             if (empty) empty.style.display = 'block';
             updatePaginationInfo(0, 0, 0);
             return;
         }
 
-        if (wrapper) wrapper.style.display = 'block';
         if (empty) empty.style.display = 'none';
 
         tbody.innerHTML = page.rows.map(division => {
@@ -103,7 +149,7 @@
                 <tr>
                     <td>${safeText(division.divisionName)}</td>
                     <td><span class="badge badge-primary">${safeText(className)}</span></td>
-                    <td><span class="badge badge-success">${division.studentCount || 0}</span></td>
+                    <td>${getStudentCount(division)}</td>
                     <td>${safeText(formatDate(division.createdAt))}</td>
                     <td>
                         <div class="action-buttons">
@@ -122,13 +168,14 @@
             `;
         }).join('');
 
+        console.log('✅ Table rendered, tbody.children.length:', tbody.children.length);
         updatePaginationInfo(page.start + 1, Math.min(page.end, page.total), page.total);
     }
 
     function updatePaginationInfo(from, to, total) {
         const info = $('paginationInfo');
         if (info) {
-            info.textContent = total === 0 ? 'No divisions' : `Showing ${from}-${to} of ${total}`;
+            info.textContent = `Showing ${from}-${to} of ${total} divisions`;
         }
     }
 
@@ -138,13 +185,12 @@
 
         const { start, end, total } = getPageSlice();
         const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-        const from = total === 0 ? 0 : start + 1;
+        const from = start + 1;
         const to = Math.min(end, total);
 
         host.innerHTML = `
             <div class="pagination-left">
-                <span id="paginationInfo">${total === 0 ? 'No divisions' : `Showing ${from}-${to} of ${total}`}</span>
+                <span id="paginationInfo">${total === 0 ? 'No divisions' : `Showing ${from}-${to} of ${total} divisions`}</span>
             </div>
             <div class="pagination-right">
                 <button class="pagination-btn" id="prevPageBtn" ${currentPage <= 1 ? 'disabled' : ''} onclick="window.divisionsApp.prevPage()">
@@ -166,251 +212,228 @@
         }
     }
 
-    async function loadInitialData() {
+    async function loadDivisions() {
+        console.log('📡 Calling API: Loading divisions...');
         try {
             showLoading();
-            hideSkeleton();
+            
+            // Hide skeleton loader if it exists
+            const skeleton = document.querySelector('.skeleton-loader');
+            if (skeleton) {
+                skeleton.style.display = 'none';
+            }
 
             const [classesResponse, divisionsResponse] = await Promise.all([
-                commonAPI.getClasses(),
-                commonAPI.getDivisions()
+                hodAPI.getAllClasses(),
+                hodAPI.getAllDivisions()
             ]);
+
+            console.log('📥 API response classes:', classesResponse);
+            console.log('📥 API response divisions:', divisionsResponse);
 
             if (classesResponse) {
                 allClasses = classesResponse;
+                console.log('🧠 allClasses:', allClasses);
                 populateClassFilter();
             }
 
             if (divisionsResponse) {
                 allDivisions = divisionsResponse;
                 filteredDivisions = divisionsResponse;
+                console.log('🧠 allDivisions:', allDivisions);
+                console.log('🧠 filteredDivisions:', filteredDivisions);
+                if (divisionsResponse.length === 0) {
+                    console.warn('⚠️ API returned empty divisions list');
+                }
                 applyFilters();
             }
         } catch (error) {
             console.error('Load initial data error:', error);
-            showToast('Failed to load data', 'error');
+            showError('Failed to load data');
         } finally {
-            hideLoading();
-            hideSkeleton();
+            hideGlobalLoading();
         }
     }
 
-    function closeModal() {
-        const container = $('modalContainer');
-        if (container) container.innerHTML = '';
-    }
-
-    function openConfirmModal({ title, message, confirmText, onConfirm }) {
-        const container = $('modalContainer');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${safeText(title)}</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="confirm-message">${safeText(message)}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                        <button class="btn btn-danger" onclick="handleConfirm()">${safeText(confirmText)}</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        window.handleConfirm = async () => {
-            await onConfirm();
-        };
-    }
-
     function openDivisionModal({ mode = 'create', division = null }) {
-        const container = $('modalContainer');
-        if (!container) return;
-
         const isEdit = mode === 'edit';
-        const title = isEdit ? 'Edit Division' : 'Add Division';
-
+        const divisionId = division?.id || '';
         const divisionName = division?.divisionName || '';
         const classId = division?.classId || '';
 
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <form id="divisionForm" onsubmit="handleDivisionSubmit(event)">
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label for="divisionName">Division Name</label>
-                                <input type="text" id="divisionName" name="divisionName" class="form-control" value="${safeText(divisionName)}" required placeholder="e.g., A, B, C" maxlength="10" />
-                            </div>
-                            <div class="form-group">
-                                <label for="classId">Class</label>
-                                <select id="classId" name="classId" class="form-control form-select" required>
-                                    <option value="">Select Class</option>
-                                    ${allClasses.map(c => `<option value="${c.id}" ${c.id == classId ? 'selected' : ''}>${safeText(c.className)}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                            <button type="submit" class="btn btn-primary">${isEdit ? 'Update' : 'Create'}</button>
-                        </div>
-                    </form>
+        const formHtml = `
+            <form id="divisionForm">
+                <div class="form-group">
+                    <label for="divisionName">Division Name *</label>
+                    <input type="text" id="divisionName" name="divisionName" class="form-control" value="${safeText(divisionName)}" required placeholder="e.g., A, B, C" maxlength="10" />
                 </div>
-            </div>
+                <div class="form-group">
+                    <label for="classId">Class *</label>
+                    <select id="classId" name="classId" class="form-control" required>
+                        <option value="">Select Class</option>
+                        ${allClasses.map(c => `<option value="${c.id}" ${c.id == classId ? 'selected' : ''}>${safeText(c.className)}</option>`).join('')}
+                    </select>
+                </div>
+            </form>
         `;
 
-        window.handleDivisionSubmit = async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const payload = {
-                divisionName: fd.get('divisionName')?.trim(),
-                classId: Number(fd.get('classId')),
-            };
+        showModal({
+            title: isEdit ? 'Edit Division' : 'Create New Division',
+            body: formHtml,
+            footer: `
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.divisionsApp.submitDivision()">${isEdit ? 'Update' : 'Create'}</button>
+            `
+        });
 
-            if (!payload.divisionName || !payload.classId) {
-                showToast('Please fill all required fields', 'error');
-                return;
-            }
+        if (isEdit) {
+            editingDivisionId = divisionId;
+        }
+    }
 
-            try {
-                showLoading();
-                if (isEdit) {
-                    await commonAPI.updateDivision(division.id, payload);
-                    showToast('Division updated successfully', 'success');
-                } else {
-                    await commonAPI.createDivision(payload);
-                    showToast('Division created successfully', 'success');
-                }
-                closeModal();
-                await loadInitialData();
-            } catch (err) {
-                console.error('Save division error:', err);
-                showToast(err.message || 'Failed to save division', 'error');
-            } finally {
-                hideLoading();
-            }
+    async function submitDivision() {
+        const form = document.getElementById('divisionForm');
+        if (!form) return;
+
+        const fd = new FormData(form);
+        const payload = {
+            divisionName: fd.get('divisionName')?.trim(),
+            classId: Number(fd.get('classId')),
         };
+
+        if (!payload.divisionName || !payload.classId) {
+            showError('Please fill all required fields');
+            return;
+        }
+
+        try {
+            showGlobalLoading();
+            if (editingDivisionId) {
+                await hodAPI.updateDivision(editingDivisionId, payload);
+            } else {
+                await hodAPI.createDivision(payload);
+            }
+            closeModal();
+            await loadDivisions();
+        } catch (err) {
+            console.error('Save division error:', err);
+            showError(err.message || 'Failed to save division');
+        } finally {
+            hideGlobalLoading();
+        }
     }
 
     function viewDivision(id) {
+        console.log('🖱️ View clicked for ID:', id);
+        hideGlobalLoading();
         const division = allDivisions.find(d => d.id === id);
         if (!division) {
-            showToast('Division not found', 'error');
+            showError('Division not found');
             return;
         }
 
         const className = allClasses.find(c => c.id === division.classId)?.className || 'N/A';
 
-        const container = $('modalContainer');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Division Details</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Division Name:</strong> ${safeText(division.divisionName)}</p>
-                        <p><strong>Class:</strong> ${safeText(className)}</p>
-                        <p><strong>Student Count:</strong> ${division.studentCount || 0}</p>
-                        <p><strong>Created Date:</strong> ${safeText(formatDate(division.createdAt))}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-primary" onclick="closeModal()">Close</button>
-                    </div>
-                </div>
-            </div>
+        const contentHtml = `
+            <p><strong>Division Name:</strong> ${safeText(division.divisionName)}</p>
+            <p><strong>Class:</strong> ${safeText(className)}</p>
+            <p><strong>Created Date:</strong> ${safeText(formatDate(division.createdAt))}</p>
         `;
+
+        console.log('🪟 Opening modal with data:', division);
+        showModal({
+            title: 'Division Details',
+            body: contentHtml,
+            footer: `
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            `
+        });
+
+        console.log('✅ Modal opened');
     }
 
     function editDivision(id) {
+        console.log('🖱️ Edit clicked for ID:', id);
+        hideGlobalLoading();
         const division = allDivisions.find(d => d.id === id);
         if (!division) {
-            showToast('Division not found', 'error');
+            showError('Division not found');
             return;
         }
+
+        console.log('🪟 Opening modal with data:', division);
         openDivisionModal({ mode: 'edit', division });
     }
 
     async function deleteDivision(id) {
+        console.log('🖱️ Delete clicked for ID:', id);
+        hideGlobalLoading();
         const division = allDivisions.find(d => d.id === id);
         if (!division) {
-            showToast('Division not found', 'error');
+            showError('Division not found');
             return;
         }
 
-        openConfirmModal({
+        console.log('⚠️ Delete confirmation triggered');
+        const confirmed = await showConfirm({
             title: 'Delete Division',
             message: `Are you sure you want to delete <strong>${safeText(division.divisionName)}</strong>? This action cannot be undone.`,
             confirmText: 'Delete',
-            onConfirm: async () => {
-                try {
-                    showLoading();
-                    await commonAPI.deleteDivision(id);
-                    showToast('Division deleted successfully', 'success');
-                    closeModal();
-                    await loadInitialData();
-                } catch (err) {
-                    console.error('Delete division error:', err);
-                    showToast(err.message || 'Failed to delete division', 'error');
-                } finally {
-                    hideLoading();
-                }
-            }
+            cancelText: 'Cancel'
         });
+
+        console.log('🧨 Delete confirmed:', confirmed);
+        if (confirmed) {
+            try {
+                showGlobalLoading();
+                await hodAPI.deleteDivision(id);
+                showSuccess('Division deleted successfully');
+                await loadDivisions();
+            } catch (err) {
+                console.error('Delete division error:', err);
+                showError(err.message || 'Failed to delete division');
+            } finally {
+                hideGlobalLoading();
+            }
+        }
     }
 
-    function showCreateModal() {
-        openDivisionModal({ mode: 'create' });
+    // Pagination functions
+    function nextPage() {
+        const totalPages = Math.ceil(filteredDivisions.length / PAGE_SIZE);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable();
+            renderPagination();
+        }
     }
 
-    function refreshData() {
-        loadInitialData();
+    function prevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable();
+            renderPagination();
+        }
     }
 
-    // Expose public API
+    // Expose public functions
     window.divisionsApp = {
-        applyFilters,
-        resetFilters,
-        showCreateModal,
-        refreshData,
-        prevPage: () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable();
-                renderPagination();
-            }
-        },
-        nextPage: () => {
-            const totalPages = Math.max(1, Math.ceil(filteredDivisions.length / PAGE_SIZE));
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable();
-                renderPagination();
-            }
-        },
         viewDivision,
         editDivision,
-        deleteDivision
+        deleteDivision,
+        submitDivision,
+        nextPage,
+        prevPage
     };
+
+    console.log('✅ window.divisionsApp exposed:', Object.keys(window.divisionsApp));
 
     // Initialize
     function init() {
         const user = requireHod();
         if (!user) return;
 
-        showSkeleton();
-        loadInitialData();
+        loadDivisions();
     }
 
     // Auto-start when DOM is ready

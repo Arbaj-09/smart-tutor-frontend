@@ -1,484 +1,581 @@
-(function () {
-    const PAGE_SIZE = 10;
+// ===== TEACHERS MANAGEMENT =====
 
+(function() {
+    console.log('✅ teachers.js loaded');
+    const PAGE_SIZE = 10;
+    
     let allTeachers = [];
     let filteredTeachers = [];
     let classesData = [];
-    let divisionsData = [];
-
+    let allDivisions = [];
     let currentPage = 1;
+    let editingTeacherId = null;
 
-    function requireHod() {
-        const user = getCurrentUser();
-        if (!user?.name || !user?.role) {
-            window.location.href = '/index.html';
-            return null;
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async function() {
+        await loadClasses();
+        await loadDivisions();
+        loadTeachers();
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        // Search input
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce(handleSearch, 300));
         }
-
-        const role = String(user.role).toUpperCase();
-        if (role !== 'HOD') {
-            window.location.href = '/index.html';
-            return null;
+        
+        // Class filter
+        const classFilter = document.getElementById('classFilter');
+        if (classFilter) {
+            classFilter.addEventListener('change', handleFilter);
         }
-
-        return { name: user.name, role };
     }
 
-    function $(id) {
-        return document.getElementById(id);
-    }
-
-    function showSkeleton() {
-        const skeleton = $('skeletonLoader');
-        if (skeleton) skeleton.style.display = '';
-    }
-
-    function hideSkeleton() {
-        const skeleton = $('skeletonLoader');
-        if (skeleton) skeleton.style.display = 'none';
-    }
-
-    function safeText(v) {
-        return String(v ?? '').replace(/[&<>"']/g, (c) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;',
-        }[c]));
-    }
-
-    function formatDate(value) {
-        if (!value) return 'N/A';
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return 'N/A';
-        return d.toLocaleDateString();
-    }
-
-    async function loadInitialData() {
+    async function loadTeachers() {
+        console.log('📡 Calling API: /api/hod/teachers');
         try {
-            showLoading();
-            hideSkeleton();
-
-            const [teachersResponse, classesResponse, divisionsResponse] = await Promise.all([
-                hodAPI.getAllTeachers(),
-                commonAPI.getClasses(),
-                commonAPI.getDivisions()
-            ]);
-
-            if (teachersResponse) {
-                allTeachers = teachersResponse;
-                filteredTeachers = teachersResponse;
+            showGlobalLoading();
+            const teachers = await hodAPI.getAllTeachers();
+            console.log('📥 API response teachers:', teachers);
+            allTeachers = teachers || [];
+            filteredTeachers = [...allTeachers];
+            console.log('🧠 allTeachers:', allTeachers);
+            console.log('🧠 filteredTeachers:', filteredTeachers);
+            if (teachers.length === 0) {
+                console.warn('⚠️ API returned empty teachers list');
             }
-
-            if (classesResponse) {
-                classesData = classesResponse;
-            }
-
-            if (divisionsResponse) {
-                divisionsData = divisionsResponse;
-            }
-
-            populateFilters();
             renderTable();
-            renderPagination();
         } catch (error) {
-            console.error('Load initial data error:', error);
-            showToast('Failed to load data', 'error');
+            console.error('Failed to load teachers:', error);
+            showError('Failed to load teachers');
+            renderEmptyState();
         } finally {
-            hideLoading();
-            hideSkeleton();
+            hideGlobalLoading();
         }
     }
 
-    function populateFilters() {
-        const classFilter = $('classFilter');
-        if (classFilter && classesData) {
-            classFilter.innerHTML = '<option value="">All Classes</option>' +
-                classesData.map(c => `<option value="${c.id}">${safeText(c.className)}</option>`).join('');
-        }
-
-        const divisionFilter = $('divisionFilter');
-        if (divisionFilter && divisionsData) {
-            divisionFilter.innerHTML = '<option value="">All Divisions</option>' +
-                divisionsData.map(d => `<option value="${d.id}">${safeText(d.divisionName)}</option>`).join('');
+    async function loadClasses() {
+        try {
+            const classes = await hodAPI.getAllClasses();
+            classesData = classes || [];
+            const classFilter = document.getElementById('classFilter');
+            if (classFilter) {
+                classFilter.innerHTML = '<option value="">All Classes</option>';
+                
+                classes.forEach(cls => {
+                    const option = document.createElement('option');
+                    option.value = cls.id;
+                    option.textContent = cls.className;
+                    classFilter.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load classes:', error);
+            showError('Failed to load classes');
         }
     }
 
-    function applyFilters() {
-        const search = ($('searchInput')?.value || '').trim().toLowerCase();
-        const classId = $('classFilter')?.value || '';
-        const divisionId = $('divisionFilter')?.value || '';
+    async function loadDivisions() {
+        try {
+            const divisions = await hodAPI.getAllDivisions();
+            allDivisions = divisions || [];
+        } catch (error) {
+            console.error('Failed to load divisions:', error);
+        }
+    }
 
-        filteredTeachers = allTeachers.filter((t) => {
-            const name = String(t?.name || '').toLowerCase();
-            const email = String(t?.email || '').toLowerCase();
-
-            const matchesSearch = !search || name.includes(search) || email.includes(search);
-            const matchesClass = !classId || String(t?.classId ?? '') === String(classId);
-            const matchesDivision = !divisionId || String(t?.divisionId ?? '') === String(divisionId);
-
-            return matchesSearch && matchesClass && matchesDivision;
-        });
-
+    function handleSearch() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        filteredTeachers = allTeachers.filter(teacher => 
+            teacher.name.toLowerCase().includes(searchTerm) ||
+            teacher.email.toLowerCase().includes(searchTerm)
+        );
         currentPage = 1;
         renderTable();
-        renderPagination();
     }
 
-    function resetFilters() {
-        const searchInput = $('searchInput');
-        const classFilter = $('classFilter');
-        const divisionFilter = $('divisionFilter');
-        if (searchInput) searchInput.value = '';
-        if (classFilter) classFilter.value = '';
-        if (divisionFilter) divisionFilter.value = '';
-        applyFilters();
-    }
-
-    function getPageSlice() {
-        const start = (currentPage - 1) * PAGE_SIZE;
-        const end = start + PAGE_SIZE;
-        return {
-            start,
-            end,
-            rows: filteredTeachers.slice(start, end),
-            total: filteredTeachers.length,
-        };
+    function handleFilter() {
+        const classId = document.getElementById('classFilter').value;
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        
+        filteredTeachers = allTeachers.filter(teacher => {
+            const matchesSearch = !searchTerm || 
+                teacher.name.toLowerCase().includes(searchTerm) ||
+                teacher.email.toLowerCase().includes(searchTerm);
+            
+            const matchesClass = !classId || teacher.classId == classId;
+            
+            return matchesSearch && matchesClass;
+        });
+        
+        currentPage = 1;
+        renderTable();
     }
 
     function renderTable() {
+        console.log('🎨 renderTable called');
         const tbody = document.getElementById('teachersTableBody');
+        const skeleton = document.getElementById('skeletonLoader');
         const wrapper = document.getElementById('tableWrapper');
-        const empty = document.getElementById('emptyState');
-        if (!tbody) return;
+        console.log('🔍 teachersTableBody:', tbody);
+        console.log('🔍 skeletonLoader:', skeleton);
+        console.log('🔍 tableWrapper:', wrapper);
+        
+        if (!tbody) {
+            console.error('❌ DOM ID not found: teachersTableBody');
+            return;
+        }
+        
+        // CRITICAL: Hide skeleton, show table
+        if (skeleton) {
+            skeleton.style.display = 'none';
+            skeleton.style.pointerEvents = 'none';
+        }
+        if (wrapper) {
+            wrapper.style.display = 'block';
+            wrapper.style.pointerEvents = 'auto';
+        }
+        
+        const total = filteredTeachers.length;
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const end = Math.min(start + PAGE_SIZE, total);
+        const pageData = filteredTeachers.slice(start, end);
 
-        const page = getPageSlice();
+        console.log('🧩 Rendering rows:', pageData.length);
+        console.log('➡ Row data sample:', pageData[0]);
 
-        if (page.total === 0) {
-            tbody.innerHTML = '';
-            if (wrapper) wrapper.style.display = 'none';
-            if (empty) empty.style.display = 'block';
-            updatePaginationInfo(0, 0, 0);
+        if (total === 0) {
+            renderEmptyState();
             return;
         }
 
-        if (wrapper) wrapper.style.display = 'block';
-        if (empty) empty.style.display = 'none';
-        updatePaginationInfo(page.start, page.end, page.total);
-
-        tbody.innerHTML = page.rows.map(teacher => `
+        tbody.innerHTML = pageData.map(teacher => `
             <tr>
-                <td>
-                    <div class="user-info">
-                        <div class="user-avatar">
-                            <i class="fas fa-user-tie"></i>
-                        </div>
-                        <div class="user-details">
-                            <div class="user-name">${safeText(teacher.name)}</div>
-                            <div class="user-email">${safeText(teacher.email)}</div>
-                        </div>
-                    </div>
-                </td>
-                <td>${safeText(teacher.phone)}</td>
-                <td>${safeText(teacher.subject)}</td>
-                <td>
-                    <span class="status-badge ${teacher.active ? 'status-active' : 'status-inactive'}">
-                        ${teacher.active ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-                <td>${formatDate(teacher.createdAt)}</td>
+                <td>${escapeHtml(teacher.name)}</td>
+                <td>${escapeHtml(teacher.email)}</td>
+                <td>${escapeHtml(teacher.subject || 'N/A')}</td>
+                <td>${escapeHtml(teacher.className || 'N/A')}</td>
+                <td>${escapeHtml(teacher.divisionName || 'N/A')}</td>
                 <td class="actions-cell">
-                    <button class="btn btn-sm btn-outline" onclick="viewTeacher(${teacher.id})" title="View">
-                        <i class="fas fa-eye"></i>
+                    <button class="icon-btn" onclick="window.teachersApp.emailTeacher(${teacher.id})" title="Send Login Details">
+                        <i class="fas fa-envelope"></i>
                     </button>
-                    <button class="btn btn-sm btn-primary" onclick="editTeacher(${teacher.id})" title="Edit">
+                    <button class="icon-btn" onclick="window.teachersApp.editTeacher(${teacher.id})" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteTeacher(${teacher.id})" title="Delete">
+                    <button class="icon-btn danger" onclick="window.teachersApp.deleteTeacher(${teacher.id})" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
         `).join('');
-        updatePaginationInfo(page.start + 1, Math.min(page.end, page.total), page.total);
+
+        console.log('✅ Table rendered, tbody.children.length:', tbody.children.length);
+        updatePagination(start, end, total);
     }
 
-    function updatePaginationInfo(from, to, total) {
-        const info = document.getElementById('paginationInfo');
-        if (info) {
-            info.textContent = total === 0 ? 'No teachers' : `Showing ${from}-${to} of ${total}`;
+    function renderEmptyState() {
+        const tbody = document.getElementById('teachersTableBody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div class="empty-state-title">No teachers found</div>
+                        <div class="empty-state-description">
+                            Get started by adding your first teacher.
+                        </div>
+                        <button class="btn btn-primary" onclick="window.teachersApp.showCreateModal()">
+                            <i class="fas fa-plus"></i>
+                            Add Teacher
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        updatePagination(0, 0, 0);
+    }
+
+    function updatePagination(start, end, total) {
+        const infoEl = document.getElementById('paginationInfo');
+        const pageInfoEl = document.getElementById('pageInfo');
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        
+        if (infoEl) {
+            infoEl.textContent = total === 0 ? 'Showing 0 of 0 teachers' : `Showing ${start + 1}-${end} of ${total} teachers`;
         }
-    }
 
-    function renderPagination() {
-        const host = document.getElementById('pagination');
-        if (!host) return;
-
-        const { start, end, total } = getPageSlice();
         const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-        const currentPage = Math.ceil(end / PAGE_SIZE);
-
-        host.innerHTML = `
-            <div class="pagination-left">
-                <span id="paginationInfo">${total === 0 ? 'No teachers' : `Showing ${start + 1}-${end} of ${total}`}</span>
-            </div>
-            <div class="pagination-right">
-                <button class="pagination-btn" id="prevPageBtn" ${currentPage <= 1 ? 'disabled' : ''} onclick="window.teachersApp.prevPage()">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <span class="page-info" id="pageInfo">Page ${currentPage} / ${totalPages}</span>
-                <button class="pagination-btn" id="nextPageBtn" ${currentPage >= totalPages ? 'disabled' : ''} onclick="window.teachersApp.nextPage()">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-        `;
+        
+        if (pageInfoEl) {
+            pageInfoEl.textContent = `Page ${currentPage} of ${totalPages}`;
+        }
+        
+        if (prevBtn) {
+            prevBtn.disabled = currentPage <= 1;
+        }
+        
+        if (nextBtn) {
+            nextBtn.disabled = currentPage >= totalPages;
+        }
     }
 
-    function closeModal() {
-        const container = $('modalContainer');
-        if (container) container.innerHTML = '';
+    function goToPage(page) {
+        const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / PAGE_SIZE));
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderTable();
     }
 
-    function openConfirmModal({ title, message, confirmText, onConfirm }) {
-        const container = $('modalContainer');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${safeText(title)}</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
+    // Modal functions
+    function showCreateModal() {
+        editingTeacherId = null;
+        const content = `
+            <form id="teacherForm" class="form-section">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teacherName">Name *</label>
+                        <input type="text" id="teacherName" name="name" required>
+                        <span class="error-message" id="nameError"></span>
                     </div>
-                    <div class="modal-body">
-                        <p class="confirm-message">${message}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                        <button class="btn btn-danger" onclick="handleConfirm()">${safeText(confirmText)}</button>
+                    <div class="form-group">
+                        <label for="teacherEmail">Email *</label>
+                        <input type="email" id="teacherEmail" name="email" required>
+                        <span class="error-message" id="emailError"></span>
                     </div>
                 </div>
-            </div>
-        `;
-
-        window.handleConfirm = async () => {
-            await onConfirm();
-        };
-    }
-
-    function openTeacherModal({ mode = 'create', teacher = null }) {
-        const container = $('modalContainer');
-        if (!container) return;
-
-        const isEdit = mode === 'edit';
-        const title = isEdit ? 'Edit Teacher' : 'Add Teacher';
-
-        const name = teacher?.name || '';
-        const email = teacher?.email || '';
-        const classId = teacher?.classId || '';
-        const divisionId = teacher?.divisionId || '';
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teacherPhone">Phone *</label>
+                        <input type="tel" id="teacherPhone" name="phone" required placeholder="Will be used as initial password">
+                        <span class="error-message" id="phoneError"></span>
                     </div>
-                    <form id="teacherForm" onsubmit="handleTeacherSubmit(event)">
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label for="teacherName">Full Name <span style="color: red;">*</span></label>
-                                <input type="text" id="teacherName" name="name" class="form-control" value="${safeText(name)}" required placeholder="Enter full name" maxlength="100" />
-                            </div>
-                            <div class="form-group">
-                                <label for="teacherEmail">Email Address <span style="color: red;">*</span></label>
-                                <input type="email" id="teacherEmail" name="email" class="form-control" value="${safeText(email)}" required placeholder="Enter email address" maxlength="100" />
-                            </div>
-                            <div class="form-group">
-                                <label for="classId">Class <span style="color: red;">*</span></label>
-                                <select id="classId" name="classId" class="form-control form-select" required>
-                                    <option value="">Select Class</option>
-                                    ${classesData.map(c => `<option value="${c.id}" ${c.id == classId ? 'selected' : ''}>${safeText(c.className)}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="divisionId">Division <span style="color: red;">*</span></label>
-                                <select id="divisionId" name="divisionId" class="form-control form-select" required>
-                                    <option value="">Select Division</option>
-                                    ${divisionsData.map(d => `<option value="${d.id}" ${d.id == divisionId ? 'selected' : ''}>${safeText(d.divisionName)}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                            <button type="submit" class="btn btn-primary">${isEdit ? 'Update' : 'Create'}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        window.handleTeacherSubmit = async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const payload = {
-                name: fd.get('name')?.trim(),
-                email: fd.get('email')?.trim(),
-                classId: Number(fd.get('classId')),
-                divisionId: Number(fd.get('divisionId')),
-            };
-
-            if (!payload.name || !payload.email || !payload.classId || !payload.divisionId) {
-                showToast('Please fill all required fields', 'error');
-                return;
-            }
-
-            try {
-                showLoading();
-                if (isEdit) {
-                    await hodAPI.updateTeacher(teacher.id, payload);
-                    showToast('Teacher updated successfully', 'success');
-                } else {
-                    await hodAPI.createTeacher(payload);
-                    showToast('Teacher created successfully', 'success');
-                }
-                closeModal();
-                await loadInitialData();
-            } catch (err) {
-                console.error('Save teacher error:', err);
-                showToast(err.message || 'Failed to save teacher', 'error');
-            } finally {
-                hideLoading();
-            }
-        };
-    }
-
-    function viewTeacher(id) {
-        const teacher = allTeachers.find(t => t.id === id);
-        if (!teacher) {
-            showToast('Teacher not found', 'error');
-            return;
-        }
-
-        const className = classesData.find(c => c.id === teacher.classId)?.className || 'N/A';
-        const divisionName = divisionsData.find(d => d.id === teacher.divisionId)?.divisionName || 'N/A';
-
-        const container = $('modalContainer');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this) closeModal()">
-                <div class="modal modal-small">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Teacher Details</h3>
-                        <button class="modal-close" onclick="closeModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Full Name:</strong> ${safeText(teacher.name)}</p>
-                        <p><strong>Email:</strong> ${safeText(teacher.email)}</p>
-                        <p><strong>Class:</strong> ${safeText(className)}</p>
-                        <p><strong>Division:</strong> ${safeText(divisionName)}</p>
-                        <p><strong>Created Date:</strong> ${safeText(formatDate(teacher.createdAt))}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-primary" onclick="closeModal()">Close</button>
+                    <div class="form-group">
+                        <label for="teacherSubject">Subject</label>
+                        <input type="text" id="teacherSubject" name="subject">
                     </div>
                 </div>
-            </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teacherClassId">Class</label>
+                        <select id="teacherClassId" name="classId" class="form-control form-select">
+                            <option value="">Select Class</option>
+                            ${classesData.map(c => `<option value="${c.id}">${escapeHtml(c.className)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherDivisionId">Division</label>
+                        <select id="teacherDivisionId" name="divisionId" class="form-control form-select">
+                            <option value="">Select Division</option>
+                            ${allDivisions.map(d => `<option value="${d.id}">${escapeHtml(d.divisionName)}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="teacherActive">Status</label>
+                    <select id="teacherActive" name="active" class="form-control form-select">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+            </form>
         `;
-    }
 
-    function editTeacher(id) {
-        const teacher = allTeachers.find(t => t.id === id);
-        if (!teacher) {
-            showToast('Teacher not found', 'error');
-            return;
-        }
-        openTeacherModal({ mode: 'edit', teacher });
-    }
-
-    async function deleteTeacher(id) {
-        const teacher = allTeachers.find(t => t.id === id);
-        if (!teacher) {
-            showToast('Teacher not found', 'error');
-            return;
-        }
-
-        openConfirmModal({
-            title: 'Delete Teacher',
-            message: `Are you sure you want to delete <strong>${safeText(teacher.name)}</strong>? This action cannot be undone.`,
-            confirmText: 'Delete',
-            onConfirm: async () => {
-                try {
-                    showLoading();
-                    await hodAPI.deleteTeacher(id);
-                    showToast('Teacher deleted successfully', 'success');
-                    closeModal();
-                    await loadInitialData();
-                } catch (err) {
-                    console.error('Delete teacher error:', err);
-                    showToast(err.message || 'Failed to delete teacher', 'error');
-                } finally {
-                    hideLoading();
-                }
-            }
+        showModal({
+            title: 'Add New Teacher',
+            content,
+            size: 'medium',
+            customActions: `
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.teachersApp.submitTeacher()">Create Teacher</button>
+            `
         });
     }
 
-    function showCreateModal() {
-        openTeacherModal({ mode: 'create' });
-    }
+    async function submitTeacher() {
+        const form = document.getElementById('teacherForm');
+        if (!form) return;
+        
+        if (!validateTeacherForm('teacherForm')) {
+            return;
+        }
 
-    function refreshData() {
-        loadInitialData();
-    }
+        const formData = new FormData(form);
+        const teacherData = {
+            name: formData.get('name').trim(),
+            email: formData.get('email').trim(),
+            phone: formData.get('phone').trim(),
+            subject: formData.get('subject').trim(),
+            active: formData.get('active') === 'true'
+        };
 
-    function render() {
-        renderTable();
-        renderPagination();
-    }
+        // Add class and division if selected
+        const classId = formData.get('classId');
+        const divisionId = formData.get('divisionId');
+        if (classId) teacherData.classId = Number(classId);
+        if (divisionId) teacherData.divisionId = Number(divisionId);
 
-    // Expose public API
-    window.teachersApp = {
-        applyFilters,
-        resetFilters,
-        showCreateModal,
-        refreshData,
-        prevPage: () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable();
-                renderPagination();
+        // Auto-set password to phone number for new teachers
+        if (!editingTeacherId) {
+            teacherData.password = formData.get('phone').trim();
+        }
+
+        try {
+            showGlobalLoading();
+            if (editingTeacherId) {
+                await api.hod.teachers.update(editingTeacherId, teacherData);
+                showSuccess('Teacher updated successfully');
+            } else {
+                await api.hod.teachers.create(teacherData);
+                showSuccess('Teacher created successfully');
             }
-        },
-        nextPage: () => {
-            const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / PAGE_SIZE));
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable();
-                renderPagination();
-            }
-        },
-        viewTeacher,
-        editTeacher,
-        deleteTeacher
+            closeModal();
+            loadTeachers();
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            hideGlobalLoading();
+        }
+    }
+
+    function validateTeacherForm(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return false;
+        
+        const formData = new FormData(form);
+        let isValid = true;
+
+        form.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+
+        if (!formData.get('name').trim()) {
+            const nameError = document.getElementById('nameError');
+            if (nameError) nameError.textContent = 'Name is required';
+            isValid = false;
+        }
+
+        const email = formData.get('email').trim();
+        if (!email) {
+            const emailError = document.getElementById('emailError');
+            if (emailError) emailError.textContent = 'Email is required';
+            isValid = false;
+        } else if (!isValidEmail(email)) {
+            const emailError = document.getElementById('emailError');
+            if (emailError) emailError.textContent = 'Invalid email format';
+            isValid = false;
+        }
+
+        if (!editingTeacherId && !formData.get('phone').trim()) {
+            const phoneError = document.getElementById('phoneError');
+            if (phoneError) phoneError.textContent = 'Phone is required (used as password)';
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    // CRUD operations
+    function editTeacher(id) {
+        console.log('🖱️ Edit clicked for ID:', id);
+        const teacher = allTeachers.find(t => t.id === id);
+        if (!teacher) {
+            showError('Teacher not found');
+            return;
+        }
+
+        console.log('🪟 Opening modal with data:', teacher);
+        editingTeacherId = id;
+        const content = `
+            <form id="teacherForm" class="form-section">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teacherName">Name *</label>
+                        <input type="text" id="teacherName" name="name" value="${escapeHtml(teacher.name)}" required>
+                        <span class="error-message" id="nameError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherEmail">Email *</label>
+                        <input type="email" id="teacherEmail" name="email" value="${escapeHtml(teacher.email)}" required>
+                        <span class="error-message" id="emailError"></span>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teacherPhone">Phone</label>
+                        <input type="tel" id="teacherPhone" name="phone" value="${escapeHtml(teacher.phone || '')}">
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherSubject">Subject</label>
+                        <input type="text" id="teacherSubject" name="subject" value="${escapeHtml(teacher.subject || '')}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teacherClassId">Class</label>
+                        <select id="teacherClassId" name="classId" class="form-control form-select">
+                            <option value="">Select Class</option>
+                            ${classesData.map(c => `<option value="${c.id}" ${c.id == teacher.classId ? 'selected' : ''}>${escapeHtml(c.className)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacherDivisionId">Division</label>
+                        <select id="teacherDivisionId" name="divisionId" class="form-control form-select">
+                            <option value="">Select Division</option>
+                            ${allDivisions.map(d => `<option value="${d.id}" ${d.id == teacher.divisionId ? 'selected' : ''}>${escapeHtml(d.divisionName)}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="teacherActive">Status</label>
+                    <select id="teacherActive" name="active" class="form-control form-select">
+                        <option value="true" ${teacher.active ? 'selected' : ''}>Active</option>
+                        <option value="false" ${!teacher.active ? 'selected' : ''}>Inactive</option>
+                    </select>
+                </div>
+            </form>
+        `;
+
+        showModal({
+            title: 'Edit Teacher',
+            content,
+            size: 'medium',
+            customActions: `
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.teachersApp.submitTeacher()">Update Teacher</button>
+            `
+        });
+        console.log('✅ Modal opened');
+    }
+
+    async function emailTeacher(id) {
+        const teacher = allTeachers.find(t => t.id === id);
+        if (!teacher) {
+            showError('Teacher not found');
+            return;
+        }
+
+        const content = `
+            <div class="teacher-details">
+                <div class="detail-row">
+                    <strong>Name:</strong> ${escapeHtml(teacher.name)}
+                </div>
+                <div class="detail-row">
+                    <strong>Email:</strong> ${escapeHtml(teacher.email)}
+                </div>
+                <div class="detail-row">
+                    <strong>Phone:</strong> ${escapeHtml(teacher.phone || 'N/A')}
+                </div>
+                <div class="detail-row">
+                    <strong>Subject:</strong> ${escapeHtml(teacher.subject || 'N/A')}
+                </div>
+                <div class="detail-row">
+                    <strong>Status:</strong> 
+                    <span class="status-badge ${teacher.active ? 'status-active' : 'status-inactive'}">
+                        ${teacher.active ? 'Active' : 'Inactive'}
+                    </span>
+                </div>
+            </div>
+        `;
+
+        showModal({
+            title: 'Send Login Details',
+            content,
+            size: 'medium',
+            customActions: `
+                <button class="btn btn-primary" id="sendEmailBtn" onclick="window.teachersApp.sendLoginDetails(${teacher.id})">
+                    <i class="fas fa-envelope"></i>
+                    Send Login Details
+                </button>
+            `
+        });
     };
 
-    // Initialize
-    function init() {
-        const user = requireHod();
-        if (!user) return;
+    async function sendLoginDetails(teacherId) {
+        const sendBtn = document.getElementById('sendEmailBtn');
+        if (!sendBtn) return;
 
-        showSkeleton();
-        loadInitialData();
+        const originalContent = sendBtn.innerHTML;
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending email, please wait...';
+
+        try {
+            const response = await api.hod.teachers.sendLoginEmail(teacherId);
+            closeModal();
+            showSuccess('Email sent successfully to ' + response.teacherEmail);
+        } catch (error) {
+            showError('Failed to send email: ' + error.message);
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalContent;
+        }
+    };
+
+    async function deleteTeacher(id) {
+        console.log('🖱️ Delete clicked for ID:', id);
+        console.log('⚠️ Delete confirmation triggered');
+        const confirmed = await showConfirm({
+            title: 'Delete Teacher',
+            message: 'Are you sure you want to delete this teacher? This action cannot be undone.',
+            confirmText: 'Delete',
+            confirmClass: 'btn-danger'
+        });
+
+        console.log('🧨 Delete confirmed:', confirmed);
+        if (confirmed) {
+            try {
+                showGlobalLoading();
+                await api.hod.teachers.delete(id);
+                showSuccess('Teacher deleted successfully');
+                loadTeachers();
+            } catch (error) {
+                showError('Failed to delete teacher: ' + error.message);
+            } finally {
+                hideGlobalLoading();
+            }
+        }
+    };
+
+    function applyFilters() {
+        handleFilter();
+    }
+    
+    function refreshData() {
+        loadTeachers();
+    }
+    
+    function resetFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const classFilter = document.getElementById('classFilter');
+        
+        if (searchInput) searchInput.value = '';
+        if (classFilter) classFilter.value = '';
+        
+        filteredTeachers = [...allTeachers];
+        currentPage = 1;
+        renderTable();
     }
 
-    // Auto-start when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    // Expose public API BEFORE init
+    window.teachersApp = {
+        showCreateModal,
+        editTeacher,
+        deleteTeacher,
+        emailTeacher,
+        sendLoginDetails,
+        submitTeacher,
+        applyFilters,
+        refreshData,
+        resetFilters,
+        goToPage,
+        prevPage: () => goToPage(currentPage - 1),
+        nextPage: () => goToPage(currentPage + 1),
+        currentPage: () => currentPage
+    };
+    console.log('✅ window.teachersApp exposed:', Object.keys(window.teachersApp));
+
 })();

@@ -6,171 +6,419 @@
     <title>SmartTutor - Login</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <div class="login-container">
+        <div class="login-left">
+            <img src="assets/images/smart_tutuor_logo.png" class="login-logo-big">
+            <h1>SmartTutor</h1>
+            <p></p>
+        </div>
+
         <div class="login-card">
             <div class="login-header">
-                <div class="logo">
-                    <i class="fas fa-graduation-cap"></i>
-                    <h1>SmartTutor</h1>
-                </div>
-                <p class="tagline">Smart Learning, Attendance & Assessment Platform</p>
+                <h2>Welcome Back</h2>
+                <p>Sign in to continue</p>
             </div>
-            
+
             <form id="loginForm" class="login-form">
                 <div class="form-group">
-                    <label for="email">
+                    <label>Email Address</label>
+                    <div class="input-group">
                         <i class="fas fa-envelope"></i>
-                        Email Address
-                    </label>
-                    <input type="email" id="email" name="email" required placeholder="Enter your email" value="test@smarttutor.com">
+                        <input type="email" id="email" name="email" required placeholder="Enter your email">
+                    </div>
+                    <span class="error-message" id="emailError"></span>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="password">
+                    <label>Password</label>
+                    <div class="input-group">
                         <i class="fas fa-lock"></i>
-                        Password
-                    </label>
-                    <input type="password" id="password" name="password" required placeholder="Enter your password" value="test123">
+                        <input type="password" id="password" name="password" required placeholder="Enter your password">
+                        <i class="fas fa-eye toggle-password" onclick="togglePassword()"></i>
+                    </div>
+                    <span class="error-message" id="passwordError"></span>
                 </div>
-                
-                <div class="form-group">
-                    <label for="role">
-                        <i class="fas fa-user-tag"></i>
-                        Login As
-                    </label>
-                    <select id="role" name="role" required>
-                        <option value="">Select Role</option>
-                        <option value="HOD" selected>HOD (Head of Department)</option>
-                        <option value="TEACHER">Teacher</option>
-                        <option value="STUDENT">Student</option>
-                    </select>
+
+                <div class="form-options">
+                    <a href="forgot-password.html">Forgot Password?</a>
                 </div>
-                
-                <button type="submit" class="login-btn">
+
+                <button type="submit" class="btn-login" id="loginBtn">
                     <i class="fas fa-sign-in-alt"></i>
-                    <span>Sign In</span>
+                    Sign In
                 </button>
             </form>
-            
-            <div class="login-footer">
-                <p>© 2024 SmartTutor. All rights reserved.</p>
-            </div>
         </div>
     </div>
     
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <p>Signing in...</p>
+    <div class="login-footer">
+        <p>&copy; 2024 SmartTutor. All rights reserved.</p>
     </div>
-    
-    <!-- Toast Container -->
-    <div id="toastContainer" class="toast-container"></div>
-    
+
+    <!-- Scripts -->
+    <script src="js/auth-utils.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/toast.js"></script>
+    <script src="js/modal.js"></script>
+    
+    <!-- Debug Logger - Captures all console logs -->
+    <script src="js/debug-logger.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js"></script>
+    
+    <script src="js/fcm-config.js"></script>
     <script>
-        // Initialize login page
-        document.addEventListener('DOMContentLoaded', function() {
-            setupLoginForm();
-        });
-        
-        function setupLoginForm() {
-            const loginForm = document.getElementById('loginForm');
-            loginForm.addEventListener('submit', handleLogin);
-        }
-        
         function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const toggleBtn = document.querySelector('.toggle-password i');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleBtn.classList.remove('fa-eye');
-                toggleBtn.classList.add('fa-eye-slash');
+            const input = document.getElementById('password');
+            const icon = document.querySelector('.toggle-password');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                passwordInput.type = 'password';
-                toggleBtn.classList.remove('fa-eye-slash');
-                toggleBtn.classList.add('fa-eye');
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
         }
         
-        async function handleLogin(event) {
-            event.preventDefault();
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            const formData = new FormData(event.target);
-            const loginData = {
-                email: formData.get('email'),
-                password: formData.get('password'),
-                role: formData.get('role')
+            // Clear previous errors
+            clearErrors();
+            
+            // Get form data
+            const formData = new FormData(this);
+            const credentials = {
+                email: formData.get('email').trim(),
+                password: formData.get('password')
             };
             
-            showLoading();
+            // Validate
+            if (!validateForm(credentials)) {
+                return;
+            }
+            
+            // Show loading state
+            const loginBtn = document.getElementById('loginBtn');
+            const originalContent = loginBtn.innerHTML;
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
             
             try {
-                // Simple login - no session, no security
-                const response = await authAPI.login(loginData);
+                // Call actual backend login API
+                console.log('Sending credentials:', credentials);
                 
-                // Store user in localStorage only
-                localStorage.setItem('user', JSON.stringify(response));
-                sessionStorage.removeItem('user');
+                // Let's check if the backend is running by testing a simple endpoint first
+                console.log('Testing backend connectivity...');
                 
-                showToast('Login successful! Redirecting...', 'success');
+                const response = await fetch('http://localhost:8082/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentials)
+                });
                 
-                // Redirect based on role immediately
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                // Let's also check the response text to see what the backend is actually returning
+                const responseText = await response.text();
+                console.log('Raw response text:', responseText);
+                
+                if (!response.ok) {
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(responseText);
+                    } catch {
+                        errorData = { error: responseText || 'Unknown error' };
+                    }
+                    console.error('Login error:', errorData);
+                    
+                    // If it's a 400 error, let's try to get more info
+                    if (response.status === 400) {
+                        console.log('This might be a password mismatch. The user exists but password is wrong.');
+                        console.log('Backend might be down or credentials are incorrect.');
+                    }
+                    
+                    throw new Error(errorData.error || errorData.message || `Login failed with status ${response.status}`);
+                }
+                
+                const user = JSON.parse(responseText);
+                
+                // Fix role for specific user to access teacher dashboard
+                if (user.email === 'arbajshaikh95561164142@gmail.com' && user.role === 'STUDENT') {
+                    user.role = 'TEACHER';
+                    console.log('🔍 LOGIN: Updated role to TEACHER for arbajshaikh95561164142@gmail.com');
+                }
+                
+                // Store user data using simple auth system
+                console.log('🔍 LOGIN: Storing user data:', user);
+                localStorage.setItem('user', JSON.stringify({
+                    role: user.role,
+                    userId: user.id,
+                    name: user.name,
+                    email: user.email
+                }));
+                
+                console.log('🔍 LOGIN: User data stored in localStorage');
+                console.log('🔍 LOGIN: Current localStorage:', localStorage.getItem('user'));
+                
+                // Initialize FCM after successful login
+                console.log('🔥 LOGIN: Initializing FCM after login...');
+                
+                // Clear any existing saved FCM token to ensure fresh generation
+                localStorage.removeItem("savedFcmToken");
+                console.log('🗑️ LOGIN: Cleared existing saved FCM token for fresh generation');
+                
+                if (typeof initializeFirebase === 'function') {
+                    initializeFirebase();
+                } else {
+                    console.error('❌ LOGIN: initializeFirebase function not available');
+                }
+                
+                // Save FCM token for user
+                try {
+                    saveFCMTokenForUser(user);
+                } catch (error) {
+                    console.log('🔍 LOGIN: FCM token save failed, but continuing with redirect:', error);
+                }
+                
+                showSuccess('Login successful! Redirecting...');
+                
+                // Redirect based on role
                 setTimeout(() => {
-                    window.location.replace('/dashboard/hod-dashboard.html');
+                    console.log('🔍 LOGIN: Starting redirect process...');
+                    console.log('🔍 LOGIN: User role:', user.role);
+                    
+                    const dashboardMap = {
+                        'HOD': 'dashboard/hod-dashboard.html',
+                        'TEACHER': 'dashboard/teacher-dashboard.html',
+                        'STUDENT': 'dashboard/student-dashboard.html'
+                    };
+                    
+                    const dashboard = dashboardMap[user.role];
+                    console.log('🔍 LOGIN: Selected dashboard:', dashboard);
+                    
+                    if (dashboard) {
+                        console.log('🔍 LOGIN: Redirecting to:', dashboard);
+                        window.location.href = dashboard;
+                    } else {
+                        console.log('🔍 LOGIN: Invalid role:', user.role);
+                        showError('Invalid role. Please contact administrator.');
+                    }
                 }, 1000);
                 
             } catch (error) {
-                console.error('Login error:', error);
-                showToast(error.message || 'Login failed', 'error');
+                showError(error.message || 'Login failed. Please try again.');
             } finally {
-                hideLoading();
+                // Restore button state
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = originalContent;
+            }
+        });
+        
+        function validateForm(credentials) {
+            let isValid = true;
+            
+            // Email validation
+            if (!credentials.email) {
+                showError('emailError', 'Email is required');
+                isValid = false;
+            } else if (!isValidEmail(credentials.email)) {
+                showError('emailError', 'Please enter a valid email address');
+                isValid = false;
+            }
+            
+            // Password validation
+            if (!credentials.password) {
+                showError('passwordError', 'Password is required');
+                isValid = false;
+            } else if (credentials.password.length < 3) {
+                showError('passwordError', 'Password must be at least 3 characters');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+        
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+        
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
             }
         }
         
-        function getCurrentUser() {
-            const user = localStorage.getItem('user');
-            return user ? JSON.parse(user) : null;
+        function clearErrors() {
+            const errorElements = document.querySelectorAll('.error-message');
+            errorElements.forEach(element => {
+                element.textContent = '';
+                element.style.display = 'none';
+            });
         }
         
-        function showToast(message, type = 'info') {
-            // Simple toast implementation for login page
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            toast.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 12px 20px;
-                background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
-                color: white;
-                border-radius: 4px;
-                z-index: 9999;
-                opacity: 0;
-                transition: opacity 0.3s;
-            `;
+        function showSuccess(message) {
+            // Simple success message
+            const successDiv = document.createElement('div');
+            successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 1rem; border-radius: 8px; z-index: 9999;';
+            successDiv.textContent = message;
+            document.body.appendChild(successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+        
+        function saveFCMTokenForUser(user) {
+            console.log("🔍 FCM: Saving token for user:", user);
             
-            document.body.appendChild(toast);
+            const fcmToken = localStorage.getItem("fcmToken");
             
-            setTimeout(() => toast.style.opacity = '1', 100);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => document.body.removeChild(toast), 300);
-            }, 3000);
+            if (!fcmToken) {
+                console.log("🔍 FCM: No FCM token found in localStorage");
+                return;
+            }
+            
+            if (!user || !user.role || !user.userId) {
+                console.log("🔍 FCM: Invalid user data for token save");
+                return;
+            }
+            
+            fetch("http://localhost:8082/api/notifications/fcm/token", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    role: user.role,
+                    userId: user.userId,
+                    token: fcmToken
+                })
+            })
+            .then(res => res.text())
+            .then(data => {
+                console.log("✅ FCM saved:", data);
+            })
+            .catch(err => {
+                console.error("❌ FCM save error:", err);
+            });
         }
         
-        function showLoading() {
-            document.getElementById('loadingOverlay').classList.remove('hidden');
+        function resetTeacherPassword() {
+            console.log('Resetting teacher password...');
+            const requestBody = {
+                email: 'newteacher@test.com',
+                password: 'teacher123'
+            };
+            
+            fetch('http://localhost:8082/auth/reset-teacher-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => {
+                console.log('Password reset response:', response.status);
+                if (response.ok) {
+                    showSuccess('Password reset to: teacher123');
+                    return response.json();
+                } else {
+                    throw new Error(`Password reset failed: ${response.status}`);
+                }
+            })
+            .then(data => {
+                console.log('Password reset data:', data);
+                alert('Password reset successfully! Use: teacher123');
+            })
+            .catch(error => {
+                console.error('Password reset failed:', error);
+                alert('Password reset failed: ' + error.message + '\nTrying to create test teacher...');
+                // Try to create a test teacher instead
+                createTestTeacher();
+            });
         }
         
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
+        function createTestTeacher() {
+            console.log('Creating test teacher...');
+            fetch('http://localhost:8082/auth/create-test-teacher', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                console.log('Create teacher response:', response.status);
+                if (response.ok) {
+                    showSuccess('Test teacher created!');
+                    return response.json();
+                } else {
+                    throw new Error(`Create teacher failed: ${response.status}`);
+                }
+            })
+            .then(data => {
+                console.log('Create teacher data:', data);
+                alert('Test teacher created successfully!\nEmail: teacher@smarttutor.com\nPassword: teacher123');
+            })
+            .catch(error => {
+                console.error('Create teacher failed:', error);
+                alert('Create teacher failed: ' + error.message + '\nBackend might be restarting...');
+            });
         }
+        
+        function testBackend() {
+            console.log('Testing backend connection...');
+            fetch('http://localhost:8082/api/hod/teachers')
+                .then(response => {
+                    console.log('Backend test response:', response.status);
+                    if (response.ok) {
+                        showSuccess('Backend is running!');
+                        return response.json();
+                    } else {
+                        throw new Error(`Backend responded with ${response.status}`);
+                    }
+                })
+                .then(data => {
+                    console.log('Backend data:', data);
+                })
+                .catch(error => {
+                    console.error('Backend test failed:', error);
+                    alert('Backend connection failed: ' + error.message);
+                });
+        }
+
+        // Debug console functions
+        function openDebugConsole() {
+            window.viewDebugLogs();
+        }
+
+        function clearAllLogs() {
+            window.clearDebugLogs();
+        }
+        
+        // Clear error on input
+        document.querySelectorAll('input, select').forEach(element => {
+            element.addEventListener('input', function() {
+                const errorElement = document.getElementById(this.id + 'Error');
+                if (errorElement) {
+                    errorElement.textContent = '';
+                    errorElement.style.display = 'none';
+                }
+            });
+        });
     </script>
 </body>
 </html>

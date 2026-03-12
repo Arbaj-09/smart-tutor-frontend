@@ -128,7 +128,9 @@
     </div>
     
     <script src="../js/api.js"></script>
+    <script src="../js/auth-utils.js"></script>
     <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/logout-helper.js"></script>
     <script>
         let quizzesData = [];
         let classesData = [];
@@ -142,7 +144,7 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             if (!isAuthenticated() || (!hasRole('TEACHER') && !hasRole('STUDENT'))) {
-                window.location.href = '/index.html';
+                window.location.href = '../index.html';
                 return;
             }
             
@@ -590,7 +592,7 @@
             document.getElementById('timerProgress').style.width = `${progress}%`;
         }
         
-        function submitQuiz() {
+        async function submitQuiz() {
             if (Object.keys(quizAnswers).length === 0) {
                 showToast('Please answer at least one question', 'warning');
                 return;

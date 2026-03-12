@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Students - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/main.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/professional.css">
+    <link rel="stylesheet" href="../../css/sidebar.css">
+    <link rel="stylesheet" href="../../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">My Students</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshStudents()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="showCreateStudentModal()">
+                        <i class="fas fa-plus"></i>
+                        Add Student
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <section class="content">
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="classFilter">Class *</label>
+                    <select id="classFilter" class="filter-control form-select">
+                        <option value="">Select Class</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="divisionFilter">Division *</label>
+                    <select id="divisionFilter" class="filter-control form-select">
+                        <option value="">Select Class First</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="searchInput">Search</label>
+                    <input type="text" id="searchInput" class="filter-control" placeholder="Search by name, email, roll no...">
+                </div>
+            </div>
+
+            <!-- Students Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Students List</h3>
+                    <div class="card-actions">
+                        <span class="text-muted" id="studentsCount">Select class and division to load students</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="data-table" id="studentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Roll No</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Class</th>
+                                    <th>Division</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">
+                                        <i class="fas fa-filter fa-2x mb-2"></i>
+                                        <p>Select class and division to view students</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination-container" id="paginationContainer">
+                        <!-- Pagination will be added here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Create Student Modal -->
+    <div id="createStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Student</h3>
+                <button class="modal-close" onclick="closeCreateStudentModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createStudentForm">
+                    <div class="form-group">
+                        <label for="studentName">Name *</label>
+                        <input type="text" id="studentName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentEmail">Email *</label>
+                        <input type="email" id="studentEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentPhone">Phone Number *</label>
+                        <input type="tel" id="studentPhone" class="form-control" required>
+                        <small class="text-muted">This will be used as initial password</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentRollNo">Roll Number *</label>
+                        <input type="text" id="studentRollNo" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="createClassSelect">Class *</label>
+                        <select id="createClassSelect" class="form-control" required>
+                            <option value="">Select Class</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="createDivisionSelect">Division *</label>
+                        <select id="createDivisionSelect" class="form-control" required>
+                            <option value="">Select Class First</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeCreateStudentModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createStudent()">
+                    <i class="fas fa-plus"></i>
+                    Add Student
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Student Modal -->
+    <div id="viewStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Student Details</h3>
+                <button class="modal-close" onclick="closeViewStudentModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="viewStudentContent">
+                    <!-- Student details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeViewStudentModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="../../js/sidebar.js"></script>
+    <script src="../../js/utils.js"></script>
+    <script>
+        // Global variables
+        let currentTeacherId = 1; // This should come from login/session
+        let allStudents = [];
+        let filteredStudents = [];
+        let currentPage = 1;
+        const PAGE_SIZE = 10;
+        let classesData = [];
+        let divisionsData = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSidebar();
+            loadTeacherClasses();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('classFilter').addEventListener('change', loadStudents);
+            document.getElementById('divisionFilter').addEventListener('change', loadStudents);
+            document.getElementById('createClassSelect').addEventListener('change', loadCreateDivisions);
+            document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
+        }
+
+        async function loadTeacherClasses() {
+            try {
+                const response = await fetch(`http://localhost:8082/api/teachers/${currentTeacherId}/classes`);
+                if (!response.ok) throw new Error('Failed to load classes');
+                
+                classesData = await response.json();
+                populateClassSelects();
+                
+            } catch (error) {
+                console.error('Error loading classes:', error);
+                showToast('Error loading classes', 'error');
+            }
+        }
+
+        function populateClassSelects() {
+            const classFilter = document.getElementById('classFilter');
+            const createClassSelect = document.getElementById('createClassSelect');
+            
+            classFilter.innerHTML = '<option value="">Select Class</option>';
+            createClassSelect.innerHTML = '<option value="">Select Class</option>';
+            
+            classesData.forEach(cls => {
+                classFilter.innerHTML += `<option value="${cls.id}">${cls.className}</option>`;
+                createClassSelect.innerHTML += `<option value="${cls.id}">${cls.className}</option>`;
+            });
+        }
+
+        async function loadDivisions(selectId) {
+            const classId = document.getElementById('classFilter').value;
+            const divisionSelect = document.getElementById('divisionFilter');
+            
+            if (!classId) {
+                divisionSelect.innerHTML = '<option value="">Select Class First</option>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:8082/api/teachers/${currentTeacherId}/divisions?classId=${classId}`);
+                if (!response.ok) throw new Error('Failed to load divisions');
+                
+                divisionsData = await response.json();
+                divisionSelect.innerHTML = '<option value="">Select Division</option>';
+                divisionsData.forEach(division => {
+                    divisionSelect.innerHTML += `<option value="${division.id}">${division.divisionName}</option>`;
+                });
+                
+            } catch (error) {
+                console.error('Error loading divisions:', error);
+                showToast('Error loading divisions', 'error');
+            }
+        }
+
+        async function loadCreateDivisions() {
+            const classId = document.getElementById('createClassSelect').value;
+            const divisionSelect = document.getElementById('createDivisionSelect');
+            
+            if (!classId) {
+                divisionSelect.innerHTML = '<option value="">Select Class First</option>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:8082/api/teachers/${currentTeacherId}/divisions?classId=${classId}`);
+                if (!response.ok) throw new Error('Failed to load divisions');
+                
+                const divisions = await response.json();
+                divisionSelect.innerHTML = '<option value="">Select Division</option>';
+                divisions.forEach(division => {
+                    divisionSelect.innerHTML += `<option value="${division.id}">${division.divisionName}</option>`;
+                });
+                
+            } catch (error) {
+                console.error('Error loading divisions:', error);
+                showToast('Error loading divisions', 'error');
+            }
+        }
+
+        async function loadStudents() {
+            const classId = document.getElementById('classFilter').value;
+            const divisionId = document.getElementById('divisionFilter').value;
+            
+            if (!classId || !divisionId) {
+                renderEmptyState();
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/hod/students/class/${classId}/division/${divisionId}`);
+                if (!response.ok) throw new Error('Failed to load students');
+                
+                allStudents = await response.json();
+                applyFiltersAndRender();
+                
+            } catch (error) {
+                console.error('Error loading students:', error);
+                showToast('Error loading students', 'error');
+                renderErrorState();
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function applyFilters() {
+            currentPage = 1;
+            applyFiltersAndRender();
+        }
+
+        function applyFiltersAndRender() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            // Apply search filter
+            filteredStudents = allStudents.filter(student => {
+                const matchesSearch = !searchTerm || 
+                    student.name.toLowerCase().includes(searchTerm) ||
+                    student.email.toLowerCase().includes(searchTerm) ||
+                    student.rollNo.toLowerCase().includes(searchTerm);
+                
+                return matchesSearch;
+            });
+            
+            renderStudentsTable();
+            updatePagination();
+        }
+
+        function renderStudentsTable() {
+            const tbody = document.getElementById('studentsTableBody');
+            const total = filteredStudents.length;
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = Math.min(start + PAGE_SIZE, total);
+            const pageData = filteredStudents.slice(start, end);
+            
+            if (total === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            <i class="fas fa-users fa-2x mb-2"></i>
+                            <p>No students found</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('studentsCount').textContent = '0 students';
+                return;
+            }
+            
+            tbody.innerHTML = pageData.map(student => `
+                <tr>
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name">${escapeHtml(student.name)}</div>
+                                <div class="user-email">${escapeHtml(student.email)}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${escapeHtml(student.rollNo)}</td>
+                    <td>${escapeHtml(student.email)}</td>
+                    <td>${escapeHtml(student.phone || 'N/A')}</td>
+                    <td>${student.className || 'N/A'}</td>
+                    <td>${student.divisionName || 'N/A'}</td>
+                    <td>
+                        <span class="status-badge ${student.active ? 'status-active' : 'status-inactive'}">
+                            ${student.active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td class="actions-cell">
+                        <button class="btn btn-sm btn-outline" onclick="viewStudent(${student.id})" title="View">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('studentsCount').textContent = `${total} student${total !== 1 ? 's' : ''}`;
+        }
+
+        function updatePagination() {
+            const total = filteredStudents.length;
+            const totalPages = Math.ceil(total / PAGE_SIZE);
+            const container = document.getElementById('paginationContainer');
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let pagination = '<div class="pagination">';
+            
+            // Previous button
+            pagination += `
+                <button class="btn btn-outline ${currentPage === 1 ? 'disabled' : ''}" 
+                        onclick="goToPage(${currentPage - 1})" 
+                        ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+            
+            // Page numbers
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            
+            if (endPage - startPage < maxVisible - 1) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                pagination += `
+                    <button class="btn ${i === currentPage ? 'btn-primary' : 'btn-outline'}" 
+                            onclick="goToPage(${i})">
+                        ${i}
+                    </button>
+                `;
+            }
+            
+            // Next button
+            pagination += `
+                <button class="btn btn-outline ${currentPage === totalPages ? 'disabled' : ''}" 
+                        onclick="goToPage(${currentPage + 1})" 
+                        ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+            
+            pagination += '</div>';
+            container.innerHTML = pagination;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderStudentsTable();
+            updatePagination();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showCreateStudentModal() {
+            document.getElementById('createStudentModal').style.display = 'block';
+        }
+
+        function closeCreateStudentModal() {
+            document.getElementById('createStudentModal').style.display = 'none';
+            document.getElementById('createStudentForm').reset();
+        }
+
+        async function createStudent() {
+            const name = document.getElementById('studentName').value;
+            const email = document.getElementById('studentEmail').value;
+            const phone = document.getElementById('studentPhone').value;
+            const rollNo = document.getElementById('studentRollNo').value;
+            const classId = document.getElementById('createClassSelect').value;
+            const divisionId = document.getElementById('createDivisionSelect').value;
+            
+            if (!name || !email || !phone || !rollNo || !classId || !divisionId) {
+                showToast('Please fill all fields', 'warning');
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch('http://localhost:8082/api/hod/student', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        rollNo: rollNo,
+                        classId: parseInt(classId),
+                        divisionId: parseInt(divisionId),
+                        teacherId: currentTeacherId
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to create student');
+                
+                showToast('Student created successfully!', 'success');
+                closeCreateStudentModal();
+                loadStudents(); // Refresh students
+                
+            } catch (error) {
+                console.error('Error creating student:', error);
+                showToast('Error creating student', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function viewStudent(studentId) {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/students/${studentId}`);
+                if (!response.ok) throw new Error('Failed to load student details');
+                
+                const student = await response.json();
+                
+                document.getElementById('viewStudentContent').innerHTML = `
+                    <div class="student-details">
+                        <div class="detail-row">
+                            <label>Name:</label>
+                            <span>${student.name}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Email:</label>
+                            <span>${student.email}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Phone:</label>
+                            <span>${student.phone || 'Not provided'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Roll Number:</label>
+                            <span>${student.rollNo}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Class:</label>
+                            <span>${student.className || 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Division:</label>
+                            <span>${student.divisionName || 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Teacher:</label>
+                            <span>${student.teacherName || 'Not assigned'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Status:</label>
+                            <span class="badge ${student.active ? 'badge-success' : 'badge-danger'}">
+                                ${student.active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('viewStudentModal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading student details:', error);
+                showToast('Error loading student details', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function closeViewStudentModal() {
+            document.getElementById('viewStudentModal').style.display = 'none';
+        }
+
+        function refreshStudents() {
+            loadStudents();
+            showToast('Students refreshed', 'success');
+        }
+
+        function renderEmptyState() {
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        <i class="fas fa-filter fa-2x mb-2"></i>
+                        <p>Select class and division to view students</p>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('studentsCount').textContent = 'Select class and division to load students';
+        }
+
+        function renderErrorState() {
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>Error loading students. Please try again.</p>
+                        <button class="btn btn-outline" onclick="loadStudents()">
+                            <i class="fas fa-retry"></i>
+                            Retry
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function showLoading() {
+            // Show loading state
+        }
+
+        function hideLoading() {
+            // Hide loading state
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${getToastIcon(type)}"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: 'check-circle',
+                error: 'exclamation-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+    </script>
+</body>
+</html>

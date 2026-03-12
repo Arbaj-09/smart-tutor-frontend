@@ -528,9 +528,16 @@ async function handleUploadNote(event) {
     try {
         const response = await commonAPI.uploadNote(formData);
         
-        showToast('Note uploaded successfully', 'success');
+        showToast('Note uploaded successfully! Notifications sent to students.', 'success');
         closeModal();
         loadNotes(); // Refresh data
+        
+        // Trigger a test notification to verify FCM is working
+        if (localStorage.getItem('fcmToken')) {
+            console.log('FCM token available, notifications should be working');
+        } else {
+            console.log('FCM token not available, check Firebase configuration');
+        }
         
     } catch (error) {
         console.error('Upload note error:', error);

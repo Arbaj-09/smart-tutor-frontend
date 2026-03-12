@@ -6,6 +6,8 @@
     <title>HOD Dashboard - SmartTutor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/professional.css">
     <link rel="stylesheet" href="../css/sidebar.css">
     <link rel="stylesheet" href="../css/dashboard.css">
 </head>
@@ -29,10 +31,6 @@
                         <i class="fas fa-sync-alt"></i>
                         Refresh
                     </button>
-                    <button class="btn btn-primary btn-sm" onclick="showCreateModal()">
-                        <i class="fas fa-plus"></i>
-                        Add New
-                    </button>
                 </div>
             </div>
         </header>
@@ -43,7 +41,7 @@
             <section class="stats-section">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-icon bg-primary">
+                        <div class="stat-icon" style="background: #dbeafe; color: #1e40af;">
                             <i class="fas fa-chalkboard"></i>
                         </div>
                         <div class="stat-content">
@@ -53,8 +51,8 @@
                     </div>
                     
                     <div class="stat-card">
-                        <div class="stat-icon bg-secondary">
-                            <i class="fas fa-chalkboard-teacher"></i>
+                        <div class="stat-icon" style="background: #dcfce7; color: #166534;">
+                            <i class="fas fa-users"></i>
                         </div>
                         <div class="stat-content">
                             <h3 class="stat-number" id="totalTeachers">0</h3>
@@ -63,8 +61,8 @@
                     </div>
                     
                     <div class="stat-card">
-                        <div class="stat-icon bg-success">
-                            <i class="fas fa-users"></i>
+                        <div class="stat-icon" style="background: #fef3c7; color: #92400e;">
+                            <i class="fas fa-user-graduate"></i>
                         </div>
                         <div class="stat-content">
                             <h3 class="stat-number" id="totalStudents">0</h3>
@@ -73,8 +71,8 @@
                     </div>
                     
                     <div class="stat-card">
-                        <div class="stat-icon bg-warning">
-                            <i class="fas fa-chart-line"></i>
+                        <div class="stat-icon" style="background: #ede9fe; color: #5b21b6;">
+                            <i class="fas fa-calendar-check"></i>
                         </div>
                         <div class="stat-content">
                             <h3 class="stat-number" id="attendanceRate">0%</h3>
@@ -84,323 +82,217 @@
                 </div>
             </section>
             
-            <!-- Quick Actions -->
-            <section class="quick-actions-section">
-                <div class="section-header">
-                    <h2>Quick Actions</h2>
-                </div>
-                <div class="quick-actions-grid">
-                    <button class="quick-action-card" onclick="openCreateClassModal()">
-                        <div class="action-icon">
-                            <i class="fas fa-plus-circle"></i>
-                        </div>
-                        <h3>Create Class</h3>
-                        <p>Add a new academic class</p>
-                    </button>
-                    
-                    <button class="quick-action-card" onclick="openCreateDivisionModal()">
-                        <div class="action-icon">
-                            <i class="fas fa-object-group"></i>
-                        </div>
-                        <h3>Create Division</h3>
-                        <p>Add a new division to class</p>
-                    </button>
-                    
-                    <button class="quick-action-card" onclick="openCreateTeacherModal()">
-                        <div class="action-icon">
-                            <i class="fas fa-user-plus"></i>
-                        </div>
-                        <h3>Add Teacher</h3>
-                        <p>Register a new teacher</p>
-                    </button>
-                    
-                    <button class="quick-action-card" onclick="viewActivityLog()">
-                        <div class="action-icon">
-                            <i class="fas fa-history"></i>
-                        </div>
-                        <h3>Activity Log</h3>
-                        <p>View system activities</p>
-                    </button>
-                </div>
-            </section>
-            
-            <!-- Recent Activities -->
-            <section class="recent-activities-section">
-                <div class="section-header">
-                    <h2>Recent Activities</h2>
-                    <button class="btn btn-outline btn-sm" onclick="viewActivityLog()">View All</button>
-                </div>
-                <div class="activities-list" id="recentActivities">
-                    <!-- Activities will be loaded here -->
-                </div>
-            </section>
-            
-            <!-- Charts Section -->
-            <section class="charts-section">
-                <div class="charts-grid">
-                    <div class="chart-card">
-                        <div class="card-header">
-                            <h3>Class Distribution</h3>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="classDistributionChart"></canvas>
-                        </div>
+            <!-- Recent Activity -->
+            <section class="recent-activity">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Recent Activity</h3>
                     </div>
-                    
-                    <div class="chart-card">
-                        <div class="card-header">
-                            <h3>Attendance Overview</h3>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="attendanceChart"></canvas>
+                    <div class="card-body">
+                        <div id="recentActivityList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div class="empty-state-title">No recent activity</div>
+                                <div class="empty-state-description">
+                                    Activity will appear here as users interact with the system.
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
         </div>
     </main>
-    
-    <!-- Modal Container -->
-    <div id="modalContainer"></div>
-    
-    <!-- Toast Container -->
-    <div id="toastContainer" class="toast-container"></div>
-    
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <p>Loading...</p>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Scripts -->
+    <script src="../js/auth-utils.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/sidebar-loader.js"></script>
+    <script src="../js/toast.js"></script>
+    <script src="../js/modal.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js"></script>
+    <script src="../js/fcm-config.js"></script>
     <script>
-        // Initialize HOD Dashboard
+        console.log('🔍 HOD-DASHBOARD: Page loading...');
+        
+        // Manual auth check (same as other pages)
+        const userStr = localStorage.getItem('user');
+        console.log('🔍 HOD-DASHBOARD: Manual auth check - userStr:', userStr);
+        
+        if (!userStr) {
+            console.log('🔍 HOD-DASHBOARD: No user found, redirecting to login');
+            window.location.href = '/frontend/index.html';
+        } else {
+            try {
+                const user = JSON.parse(userStr);
+                console.log('🔍 HOD-DASHBOARD: Parsed user:', user);
+                
+                if (!user.role || user.role !== 'HOD') {
+                    console.log('🔍 HOD-DASHBOARD: User not HOD, redirecting. Role:', user.role);
+                    window.location.href = '/frontend/index.html';
+                } else {
+                    console.log('🔍 HOD-DASHBOARD: Auth check PASSED for role:', user.role);
+                }
+            } catch (error) {
+                console.log('🔍 HOD-DASHBOARD: Failed to parse user, redirecting:', error);
+                window.location.href = '/frontend/index.html';
+            }
+        }
+
+        // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            if (!isAuthenticated() || !hasRole('HOD')) {
-                window.location.href = '/index.html';
-                return;
+            console.log('🔍 HOD-DASHBOARD: DOM loaded, initializing...');
+            
+            // Initialize Firebase for HOD
+            console.log('🔥 HOD-DASHBOARD: Initializing Firebase...');
+            if (typeof window.initializeFirebase === 'function') {
+                const messaging = window.initializeFirebase();
+                console.log('✅ HOD-DASHBOARD: Firebase initialized successfully');
+                
+                // Request notification permission and get token
+                if (typeof window.requestNotificationPermission === 'function') {
+                    setTimeout(() => {
+                        window.requestNotificationPermission(messaging);
+                    }, 1000);
+                }
+            } else {
+                console.error('❌ HOD-DASHBOARD: Firebase initialization function not available');
             }
             
-            window.loadSidebar();
-            loadDashboardData();
+            // Initialize sidebar first
+            if (typeof window.loadSidebar === 'function') {
+                window.loadSidebar().then(() => {
+                    console.log('🔍 HOD-DASHBOARD: Sidebar loaded successfully');
+                    loadDashboard();
+                }).catch(error => {
+                    console.error('🔍 HOD-DASHBOARD: Sidebar loading failed:', error);
+                    loadDashboard(); // Still load dashboard even if sidebar fails
+                });
+            } else {
+                loadDashboard();
+            }
         });
-        
-        async function loadDashboardData() {
+
+        async function loadDashboard() {
             try {
-                showLoading();
-                const response = await hodAPI.getDashboardStats();
-                
-                if (response) {
-                    updateStatsCards(response);
-                    await loadRecentActivities();
+                // Load dashboard stats from actual API
+                const response = await fetch('http://localhost:8082/api/hod/dashboard');
+                if (!response.ok) {
+                    throw new Error('Failed to load dashboard data');
                 }
+                const stats = await response.json();
+                updateStats(stats);
+                
+                // Load recent activity
+                const activityResponse = await fetch('http://localhost:8082/api/hod/activity-logs');
+                if (activityResponse.ok) {
+                    const activities = await activityResponse.json();
+                    updateRecentActivity(activities.slice(0, 5)); // Show last 5 activities
+                } else {
+                    updateRecentActivity([]); // Empty if fails
+                }
+                
             } catch (error) {
-                console.error('Dashboard data error:', error);
-                showToast('Failed to load dashboard data', 'error');
-            } finally {
-                hideLoading();
+                console.error('Failed to load dashboard:', error);
+                showError('Failed to load dashboard data');
             }
         }
-        
-        function updateStatsCards(data) {
-            animateNumber('totalClasses', data.totalClasses || 0);
-            animateNumber('totalTeachers', data.totalTeachers || 0);
-            animateNumber('totalStudents', data.totalStudents || 0);
-            
-            const attendanceRate = data.overallAttendancePercentage || 0;
-            document.getElementById('attendanceRate').textContent = attendanceRate.toFixed(1) + '%';
+
+        function updateStats(stats) {
+            // Animate numbers using actual API field names
+            animateNumber('totalClasses', stats.totalClasses || 0);
+            animateNumber('totalTeachers', stats.totalTeachers || 0);
+            animateNumber('totalStudents', stats.totalStudents || 0);
+            animateNumber('attendanceRate', stats.overallAttendancePercentage || 0, '%');
         }
-        
-        function animateNumber(elementId, targetValue) {
+
+        function animateNumber(elementId, target, suffix = '') {
             const element = document.getElementById(elementId);
-            const startValue = 0;
+            if (!element) return;
+            
             const duration = 1000;
-            const startTime = performance.now();
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
             
-            function updateNumber(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
-                element.textContent = currentValue.toLocaleString();
-                
-                if (progress < 1) {
-                    requestAnimationFrame(updateNumber);
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
                 }
-            }
-            
-            requestAnimationFrame(updateNumber);
+                element.textContent = Math.round(current) + suffix;
+            }, 16);
         }
-        
-        async function loadRecentActivities() {
-            try {
-                const activities = await hodAPI.getActivityLogs();
-                displayRecentActivities(activities);
-            } catch (error) {
-                console.error('Activities error:', error);
-                document.getElementById('recentActivities').innerHTML = '<p class="no-activities">Failed to load activities</p>';
-            }
-        }
-        
-        function displayRecentActivities(activities) {
-            const container = document.getElementById('recentActivities');
+
+        function updateRecentActivity(activities) {
+            const container = document.getElementById('recentActivityList');
+            if (!container) return;
             
-            if (activities.length === 0) {
-                container.innerHTML = '<p class="no-activities">No recent activities</p>';
+            if (!activities || activities.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="empty-state-title">No recent activity</div>
+                        <div class="empty-state-description">
+                            Activity will appear here as users interact with the system.
+                        </div>
+                    </div>
+                `;
                 return;
             }
             
-            container.innerHTML = activities.slice(0, 5).map(activity => `
-                <div class="activity-item">
+            container.innerHTML = activities.map(activity => `
+                <div class="activity-item fade-in">
                     <div class="activity-icon">
                         <i class="fas ${getActivityIcon(activity.action)}"></i>
                     </div>
                     <div class="activity-content">
-                        <h4>${formatActivityTitle(activity.action)}</h4>
-                        <p>${activity.description}</p>
-                        <small class="activity-time">${formatDateTime(activity.createdAt)}</small>
+                        <div class="activity-title">${activity.description || activity.action}</div>
+                        <div class="activity-time">${formatDate(activity.timestamp)}</div>
                     </div>
                 </div>
             `).join('');
         }
-        
+
         function getActivityIcon(action) {
-            const iconMap = {
+            const icons = {
                 'CREATE_CLASS': 'fa-chalkboard',
-                'CREATE_DIVISION': 'fa-object-group',
-                'CREATE_TEACHER': 'fa-user-plus',
-                'UPDATE_TEACHER': 'fa-user-edit',
-                'DELETE_TEACHER': 'fa-user-minus',
+                'CREATE_TEACHER': 'fa-user-tie',
                 'CREATE_STUDENT': 'fa-user-graduate',
+                'CREATE_DIVISION': 'fa-object-group',
                 'MARK_ATTENDANCE': 'fa-calendar-check',
-                'UPLOAD_NOTES': 'fa-file-upload',
-                'CREATE_QUIZ': 'fa-question-circle'
+                'UPLOAD_NOTE': 'fa-file-upload',
+                'CREATE_QUIZ': 'fa-question-circle',
+                'DELETE_TEACHER': 'fa-trash',
+                'UPDATE_TEACHER': 'fa-edit'
             };
-            
-            return iconMap[action] || 'fa-circle';
+            return icons[action] || 'fa-circle';
         }
-        
-        function formatActivityTitle(action) {
-            return action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+
+        function formatDate(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) return 'N/A';
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         }
-        
-        function refreshDashboard() {
-            loadDashboardData();
-            showToast('Dashboard refreshed', 'success');
-        }
-        
-        function showCreateModal() {
-            // Show modal with options to create class, division, or teacher
-            const modalHTML = `
-                <div class="modal-overlay active">
-                    <div class="modal">
-                        <div class="modal-header">
-                            <h3 class="modal-title">Quick Actions</h3>
-                            <button class="modal-close" onclick="closeModal()">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="quick-actions-list">
-                                <button class="quick-action-btn" onclick="openCreateClassModal(); closeModal();">
-                                    <i class="fas fa-chalkboard"></i>
-                                    Create Class
-                                </button>
-                                <button class="quick-action-btn" onclick="openCreateDivisionModal(); closeModal();">
-                                    <i class="fas fa-object-group"></i>
-                                    Create Division
-                                </button>
-                                <button class="quick-action-btn" onclick="openCreateTeacherModal(); closeModal();">
-                                    <i class="fas fa-user-plus"></i>
-                                    Add Teacher
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('modalContainer').innerHTML = modalHTML;
-        }
-        
-        function openCreateClassModal() {
-            const modalHTML = `
-                <div class="modal-overlay active">
-                    <div class="modal">
-                        <div class="modal-header">
-                            <h3 class="modal-title">Create Class</h3>
-                            <button class="modal-close" onclick="closeModal()">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <form id="createClassForm">
-                                <div class="form-group">
-                                    <label>Class Name</label>
-                                    <input type="text" name="className" required placeholder="e.g., FY, SY, TY">
-                                </div>
-                                <div class="form-actions">
-                                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                                    <button type="submit" class="btn btn-primary">Create Class</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('modalContainer').innerHTML = modalHTML;
-            document.getElementById('createClassForm').addEventListener('submit', handleCreateClass);
-        }
-        
-        async function handleCreateClass(event) {
-            event.preventDefault();
-            
-            const formData = new FormData(event.target);
-            const classData = {
-                className: formData.get('className')
-            };
-            
-            showLoading();
-            
-            try {
-                await hodAPI.createClass(classData);
-                showToast('Class created successfully', 'success');
-                closeModal();
-                loadDashboardData(); // Refresh data
-            } catch (error) {
-                console.error('Create class error:', error);
-                showToast(error.message || 'Failed to create class', 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        function openCreateDivisionModal() {
-            showToast('Create Division modal - Coming soon!', 'info');
-        }
-        
-        function openCreateTeacherModal() {
-            showToast('Create Teacher modal - Coming soon!', 'info');
-        }
-        
-        function viewActivityLog() {
-            window.location.href = '../pages/activity-log.html';
-        }
-        
-        function viewAllActivities() {
-            window.location.href = '../pages/activity-log.html';
-        }
-        
-        function showAddNewMenu() {
-            // Implementation for add new menu
-            showToast('Add New menu - Coming soon!', 'info');
+
+        async function refreshDashboard() {
+            await loadDashboard();
+            showSuccess('Dashboard refreshed');
         }
     </script>
-    
-    <!-- Scripts -->
-    <script src="../js/api.js"></script>
-    <script src="../js/sidebar-loader.js"></script>
 </body>
 </html>

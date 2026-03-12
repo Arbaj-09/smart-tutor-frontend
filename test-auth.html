@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Test</title>
+</head>
+<body>
+    <h1>Authentication Test</h1>
+    <div id="output"></div>
+    
+    <script src="js/auth-unified.js"></script>
+    <script>
+        console.log('Testing auth system...');
+        
+        // Test if auth system loaded
+        if (window.auth) {
+            document.getElementById('output').innerHTML = '<p>✅ Auth system loaded</p>';
+            console.log('Auth system available:', window.auth);
+            
+            // Test current user
+            const user = window.auth.getCurrentUser();
+            console.log('Current user:', user);
+            document.getElementById('output').innerHTML += '<p>Current user: ' + JSON.stringify(user) + '</p>';
+            
+            // Test authentication
+            const isAuth = window.auth.isAuthenticated();
+            console.log('Is authenticated:', isAuth);
+            document.getElementById('output').innerHTML += '<p>Is authenticated: ' + isAuth + '</p>';
+            
+            // Test localStorage
+            const userData = localStorage.getItem('user');
+            console.log('LocalStorage user:', userData);
+            document.getElementById('output').innerHTML += '<p>LocalStorage: ' + userData + '</p>';
+            
+        } else {
+            document.getElementById('output').innerHTML = '<p>❌ Auth system NOT loaded</p>';
+        }
+    </script>
+</body>
+</html>

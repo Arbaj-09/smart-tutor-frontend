@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Notes - SmartTutor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/main.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/professional.css">
+    <link rel="stylesheet" href="../../css/sidebar.css">
+    <link rel="stylesheet" href="../../css/dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebarContainer"></div>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">My Notes</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="refreshNotes()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <section class="content">
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="searchInput">Search</label>
+                    <input type="text" id="searchInput" class="filter-control" placeholder="Search by title or subject...">
+                </div>
+                <div class="filter-group">
+                    <label for="subjectFilter">Subject</label>
+                    <select id="subjectFilter" class="filter-control form-select">
+                        <option value="">All Subjects</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="sortBy">Sort By</label>
+                    <select id="sortBy" class="filter-control form-select">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="title">Title (A-Z)</option>
+                        <option value="subject">Subject (A-Z)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Notes Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Available Notes</h3>
+                    <div class="card-actions">
+                        <span class="text-muted" id="notesCount">Loading...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="data-table" id="notesTable">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Subject</th>
+                                    <th>Teacher</th>
+                                    <th>Uploaded Date</th>
+                                    <th>File Type</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notesTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center">
+                                        <div class="loading-spinner">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                            Loading notes...
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination-container" id="paginationContainer">
+                        <!-- Pagination will be added here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- View Note Modal -->
+    <div id="viewNoteModal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="viewNoteTitle">Note Details</h3>
+                <button class="modal-close" onclick="closeViewNoteModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="viewNoteContent">
+                    <!-- Note details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeViewNoteModal()">Close</button>
+                <button type="button" class="btn btn-primary" id="downloadNoteBtn">
+                    <i class="fas fa-download"></i>
+                    Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="../../js/sidebar.js"></script>
+    <script src="../../js/utils.js"></script>
+    <script>
+        // Global variables
+        let currentStudentId = 1; // This should come from login/session
+        let allNotes = [];
+        let filteredNotes = [];
+        let currentPage = 1;
+        const PAGE_SIZE = 10;
+        let subjects = new Set();
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSidebar();
+            loadNotes();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 300));
+            document.getElementById('subjectFilter').addEventListener('change', handleFilter);
+            document.getElementById('sortBy').addEventListener('change', handleSort);
+        }
+
+        async function loadNotes() {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/notes/student/${currentStudentId}`);
+                if (!response.ok) throw new Error('Failed to load notes');
+                
+                allNotes = await response.json();
+                
+                // Extract subjects for filter
+                subjects.clear();
+                allNotes.forEach(note => {
+                    if (note.subject) subjects.add(note.subject);
+                });
+                
+                populateSubjectFilter();
+                applyFiltersAndRender();
+                
+            } catch (error) {
+                console.error('Error loading notes:', error);
+                showToast('Error loading notes', 'error');
+                renderErrorState();
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function populateSubjectFilter() {
+            const subjectFilter = document.getElementById('subjectFilter');
+            subjectFilter.innerHTML = '<option value="">All Subjects</option>';
+            
+            Array.from(subjects).sort().forEach(subject => {
+                subjectFilter.innerHTML += `<option value="${subject}">${subject}</option>`;
+            });
+        }
+
+        function handleSearch() {
+            currentPage = 1;
+            applyFiltersAndRender();
+        }
+
+        function handleFilter() {
+            currentPage = 1;
+            applyFiltersAndRender();
+        }
+
+        function handleSort() {
+            currentPage = 1;
+            applyFiltersAndRender();
+        }
+
+        function applyFiltersAndRender() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const subjectFilter = document.getElementById('subjectFilter').value;
+            const sortBy = document.getElementById('sortBy').value;
+            
+            // Apply filters
+            filteredNotes = allNotes.filter(note => {
+                const matchesSearch = !searchTerm || 
+                    note.title.toLowerCase().includes(searchTerm) ||
+                    note.subject.toLowerCase().includes(searchTerm);
+                    
+                const matchesSubject = !subjectFilter || note.subject === subjectFilter;
+                
+                return matchesSearch && matchesSubject;
+            });
+            
+            // Apply sorting
+            switch (sortBy) {
+                case 'newest':
+                    filteredNotes.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+                    break;
+                case 'oldest':
+                    filteredNotes.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
+                    break;
+                case 'title':
+                    filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
+                    break;
+                case 'subject':
+                    filteredNotes.sort((a, b) => a.subject.localeCompare(b.subject));
+                    break;
+            }
+            
+            renderNotesTable();
+            updatePagination();
+        }
+
+        function renderNotesTable() {
+            const tbody = document.getElementById('notesTableBody');
+            const total = filteredNotes.length;
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = Math.min(start + PAGE_SIZE, total);
+            const pageData = filteredNotes.slice(start, end);
+            
+            if (total === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No notes found</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('notesCount').textContent = '0 notes';
+                return;
+            }
+            
+            tbody.innerHTML = pageData.map(note => `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="file-icon me-2">
+                                <i class="fas fa-file-${getFileIcon(note.fileType)}"></i>
+                            </div>
+                            <div>
+                                <div class="fw-medium">${escapeHtml(note.title)}</div>
+                                ${note.description ? `<small class="text-muted">${escapeHtml(note.description)}</small>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge badge-info">${escapeHtml(note.subject)}</span>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-tie me-1 text-muted"></i>
+                            ${note.teacher ? escapeHtml(note.teacher.name) : 'Unknown'}
+                        </div>
+                    </td>
+                    <td>
+                        <small>${formatDate(note.uploadedAt)}</small>
+                    </td>
+                    <td>
+                        <span class="badge badge-secondary">${note.fileType?.toUpperCase() || 'Unknown'}</span>
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline" onclick="viewNote(${note.id})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="downloadNote('${note.filePath}', '${note.fileName}')" title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('notesCount').textContent = `${total} note${total !== 1 ? 's' : ''}`;
+        }
+
+        function updatePagination() {
+            const total = filteredNotes.length;
+            const totalPages = Math.ceil(total / PAGE_SIZE);
+            const container = document.getElementById('paginationContainer');
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let pagination = '<div class="pagination">';
+            
+            // Previous button
+            pagination += `
+                <button class="btn btn-outline ${currentPage === 1 ? 'disabled' : ''}" 
+                        onclick="goToPage(${currentPage - 1})" 
+                        ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+            
+            // Page numbers
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            
+            if (endPage - startPage < maxVisible - 1) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                pagination += `
+                    <button class="btn ${i === currentPage ? 'btn-primary' : 'btn-outline'}" 
+                            onclick="goToPage(${i})">
+                        ${i}
+                    </button>
+                `;
+            }
+            
+            // Next button
+            pagination += `
+                <button class="btn btn-outline ${currentPage === totalPages ? 'disabled' : ''}" 
+                        onclick="goToPage(${currentPage + 1})" 
+                        ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+            
+            pagination += '</div>';
+            container.innerHTML = pagination;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderNotesTable();
+            updatePagination();
+            
+            // Scroll to top of table
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function viewNote(noteId) {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8082/api/notes/${noteId}`);
+                if (!response.ok) throw new Error('Failed to load note details');
+                
+                const note = await response.json();
+                
+                document.getElementById('viewNoteTitle').textContent = note.title;
+                document.getElementById('viewNoteContent').innerHTML = `
+                    <div class="note-details">
+                        <div class="detail-row">
+                            <label>Subject:</label>
+                            <span>${note.subject}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Description:</label>
+                            <span>${note.description || 'No description'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Teacher:</label>
+                            <span>${note.teacher ? note.teacher.name : 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Class:</label>
+                            <span>${note.classEntity ? note.classEntity.className : 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Division:</label>
+                            <span>${note.division ? note.division.divisionName : 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>File Name:</label>
+                            <span>${note.fileName}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>File Type:</label>
+                            <span>${note.fileType?.toUpperCase() || 'Unknown'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>File Size:</label>
+                            <span>${formatFileSize(note.fileSize)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <label>Uploaded Date:</label>
+                            <span>${formatDateTime(note.uploadedAt)}</span>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('downloadNoteBtn').onclick = () => downloadNote(note.filePath, note.fileName);
+                document.getElementById('viewNoteModal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading note details:', error);
+                showToast('Error loading note details', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function closeViewNoteModal() {
+            document.getElementById('viewNoteModal').style.display = 'none';
+        }
+
+        function downloadNote(filePath, fileName) {
+            try {
+                const link = document.createElement('a');
+                link.href = `http://localhost:8082/api/files/download/${filePath}`;
+                link.download = fileName;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast('Download started', 'success');
+            } catch (error) {
+                console.error('Error downloading note:', error);
+                showToast('Error downloading note', 'error');
+            }
+        }
+
+        function refreshNotes() {
+            loadNotes();
+            showToast('Notes refreshed', 'success');
+        }
+
+        function renderErrorState() {
+            const tbody = document.getElementById('notesTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>Error loading notes. Please try again.</p>
+                        <button class="btn btn-outline" onclick="loadNotes()">
+                            <i class="fas fa-retry"></i>
+                            Retry
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Utility functions
+        function getFileIcon(fileType) {
+            const icons = {
+                'pdf': 'pdf',
+                'doc': 'word',
+                'docx': 'word',
+                'ppt': 'powerpoint',
+                'pptx': 'powerpoint',
+                'jpg': 'image',
+                'jpeg': 'image',
+                'png': 'image'
+            };
+            return icons[fileType?.toLowerCase()] || 'alt';
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return 'Unknown';
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function showLoading() {
+            // Show loading state
+        }
+
+        function hideLoading() {
+            // Hide loading state
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${getToastIcon(type)}"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: 'check-circle',
+                error: 'exclamation-circle',
+                warning: 'exclamation-triangle',
+                info: 'info-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+    </script>
+</body>
+</html>

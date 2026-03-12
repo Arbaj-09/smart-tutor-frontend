@@ -6,9 +6,10 @@
     <title>Manage Classes - SmartTutor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/professional.css">
     <link rel="stylesheet" href="../css/sidebar.css">
-    <link rel="stylesheet" href="../css/modal.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
 </head>
 <body>
     <!-- Sidebar -->
@@ -115,11 +116,11 @@
                         <span id="paginationInfo">Showing 0 of 0 classes</span>
                     </div>
                     <div class="pagination-right">
-                        <button class="pagination-btn" id="prevPageBtn" onclick="window.classesApp?.prevPage()" disabled>
+                        <button class="pagination-btn" id="prevPageBtn" onclick="window.classesApp.prevPage()" disabled>
                             <i class="fas fa-chevron-left"></i>
                         </button>
                         <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                        <button class="pagination-btn" id="nextPageBtn" onclick="window.classesApp?.nextPage()" disabled>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="window.classesApp.nextPage()" disabled>
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
@@ -139,21 +140,191 @@
         <div class="spinner"></div>
         <p>Loading...</p>
     </div>
+
+    <!-- Debug Log Viewer -->
     
+
+    <script src="../js/auth-utils.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/sidebar-loader.js"></script>
-    <script src="../js/modal.js"></script>
     <script src="../js/toast.js"></script>
-    <script src="../js/pagination.js"></script>
-    <script src="../js/search.js"></script>
-    <script src="../js/classes.js"></script>
+    <script src="../js/modal.js"></script>
     
     <script>
+        // Debug log system for manage-classes page
+        function initDebugLogs() {
+            const debugLogs = [];
+            const originalConsole = {
+                log: console.log,
+                warn: console.warn,
+                error: console.error
+            };
+            
+            function addDebugLog(type, ...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                const message = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+                
+                const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+                debugLogs.push(logEntry);
+                
+                // Store in sessionStorage to survive page refresh
+                sessionStorage.setItem('debugLogs', JSON.stringify(debugLogs.slice(-50)));
+                
+                // Update log display
+                const logContent = document.getElementById('debugLogContent');
+                if (logContent) {
+                    logContent.innerHTML = debugLogs.slice(-20).join('<br>');
+                    logContent.scrollTop = logContent.scrollHeight;
+                }
+                
+                originalConsole[type](...args);
+            }
+            
+            function loadStoredLogs() {
+                const stored = sessionStorage.getItem('debugLogs');
+                if (stored) {
+                    try {
+                        const logs = JSON.parse(stored);
+                        debugLogs.push(...logs);
+                    } catch (e) {
+                        console.log('Failed to load stored logs:', e);
+                    }
+                }
+            }
+            
+            // Override console methods
+            console.log = (...args) => addDebugLog('log', ...args);
+            console.warn = (...args) => addDebugLog('warn', ...args);
+            console.error = (...args) => addDebugLog('error', ...args);
+            
+            window.clearDebugLogs = function() {
+                debugLogs.length = 0;
+                sessionStorage.removeItem('debugLogs');
+                const logContent = document.getElementById('debugLogContent');
+                if (logContent) logContent.innerHTML = '';
+            };
+            
+            // Load stored logs and show viewer
+            loadStoredLogs();
+            const viewer = document.getElementById('debugLogViewer');
+            if (viewer) {
+                viewer.style.display = 'block';
+            }
+        }
+        
+        // Initialize debug logging before anything else
+        initDebugLogs();
+        console.log('🔍 MANAGE-CLASSES: Page loading...');
+        
+        // Manual auth check (same as other pages)
+        const userStr = localStorage.getItem('user');
+        console.log('🔍 MANAGE-CLASSES: Manual auth check - userStr:', userStr);
+        
+        if (!userStr) {
+            console.log('🔍 MANAGE-CLASSES: No user found, redirecting to login');
+            window.location.href = '../index.html';
+        } else {
+            try {
+                const user = JSON.parse(userStr);
+                console.log('🔍 MANAGE-CLASSES: Parsed user:', user);
+                
+                if (!user.role || user.role !== 'HOD') {
+                    console.log('🔍 MANAGE-CLASSES: User not HOD, redirecting. Role:', user.role);
+                    window.location.href = '../index.html';
+                } else {
+                    console.log('🔍 MANAGE-CLASSES: Auth check PASSED for role:', user.role);
+                }
+            } catch (error) {
+                console.log('🔍 MANAGE-CLASSES: Failed to parse user, redirecting:', error);
+                window.location.href = '../index.html';
+            }
+        }
+
+        function editClass(classId) {
+            console.log('Edit class:', classId);
+            // TODO: Implement edit class functionality
+        }
+        
+        function deleteClass(classId, className) {
+            if (confirm(`Are you sure you want to delete "${className}"?`)) {
+                console.log('Delete class:', classId);
+                // TODO: Implement delete class functionality
+            }
+        }
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
+        }
+
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        // Load classes data
+        async function loadClasses() {
+            try {
+                showLoading();
+                console.log('Loading classes...');
+                const response = await hodAPI.getAllClasses();
+                console.log('Classes response:', response);
+                
+                const tableBody = document.getElementById('classesTableBody');
+                
+                // Show table and hide skeleton (FIX FOR HIDDEN TABLE)
+                const tableWrapper = document.getElementById('tableWrapper');
+                const skeletonLoader = document.getElementById('skeletonLoader');
+                const paginationInfo = document.getElementById('paginationInfo');
+
+                if (tableWrapper) tableWrapper.style.display = "block";
+                if (skeletonLoader) skeletonLoader.style.display = "none";
+                if (paginationInfo) paginationInfo.innerText = `Showing ${response.length} of ${response.length} classes`;
+                
+                if (tableBody && response) {
+                    tableBody.innerHTML = '';
+                    console.log('Number of classes:', response.length);
+                    response.forEach(cls => {
+                        console.log('Processing class:', cls);
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${cls.className}</td>
+                            <td>${cls.studentCount || 0}</td>
+                            <td>${cls.teacherCount || 0}</td>
+                            <td>${new Date(cls.createdAt).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editClass(${cls.id})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteClass(${cls.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    console.log('No table body or no response');
+                }
+            } catch (error) {
+                console.error('Failed to load classes:', error);
+                showToast('Failed to load classes: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
         // Initialize page with sidebar
         document.addEventListener('DOMContentLoaded', function() {
             if (window.loadSidebar) {
                 window.loadSidebar();
             }
+            loadClasses();
         });
     </script>
 </body>

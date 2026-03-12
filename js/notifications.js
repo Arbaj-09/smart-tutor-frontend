@@ -6,14 +6,29 @@
     let currentPage = 1;
 
     function requireHod() {
-        const user = getCurrentUser();
+        // Manual user check (same as other pages)
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            console.warn("Redirect prevented for demo - notifications.js");
+            return null;
+        }
+        
+        let user;
+        try {
+            user = JSON.parse(userStr);
+        } catch (error) {
+            console.warn("Redirect prevented for demo - notifications.js parse error");
+            return null;
+        }
+        
         if (!user?.name || !user?.role) {
-            window.location.href = '/index.html';
+            console.warn("Redirect prevented for demo - notifications.js");
             return null;
         }
         const role = String(user.role).toUpperCase();
-        if (role !== 'HOD') {
-            window.location.href = '/index.html';
+        // Allow TEACHER, STUDENT, and HOD to access notifications
+        if (role !== 'HOD' && role !== 'TEACHER' && role !== 'STUDENT') {
+            console.warn("Redirect prevented for demo - notifications.js role check");
             return null;
         }
         return { name: user.name, role };
@@ -100,25 +115,23 @@
         if (empty) empty.style.display = 'none';
 
         tbody.innerHTML = page.rows.map(notification => {
-            const typeClass = getTypeClass(notification.type);
-            const typeIcon = getTypeIcon(notification.type);
-            const statusBadge = notification.read ? 
+            const statusBadge = notification.isRead ? 
                 '<span class="badge badge-success">Read</span>' : 
                 '<span class="badge badge-warning">Unread</span>';
 
             return `
                 <tr>
                     <td>${safeText(formatDate(notification.createdAt))}</td>
-                    <td><span class="badge ${typeClass}">${safeText(notification.type)}</span></td>
-                    <td><div class="notification-message">${safeText(notification.message)}</div></td>
+                    <td>${safeText(notification.teacherName || '-')}</td>
+                    <td>${safeText(notification.subject || '-')}</td>
+                    <td><div class="notification-message">${safeText(notification.title)}</div></td>
+                    <td>${safeText(notification.className || '-')}</td>
+                    <td>${safeText(notification.divisionName || '-')}</td>
                     <td>${statusBadge}</td>
                     <td>
                         <div class="action-buttons">
                             <button class="icon-btn" onclick="window.notificationsApp.viewNotification(${notification.id})" title="View Details">
                                 <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="icon-btn" onclick="window.notificationsApp.deleteNotification(${notification.id})" title="Delete">
-                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>

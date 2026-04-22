@@ -265,7 +265,7 @@
                 throw new Error('Failed to parse user data');
             }
             
-            if (!user || !user.userId) {
+            if (!user || (!user.userId && !user.id)) {
                 throw new Error('User not found or invalid user data');
             }
             
@@ -273,18 +273,17 @@
 
             let studentsResponse;
             const role = String(user.role).toUpperCase();
+            const userId = user.userId || user.id;
             
             if (role === 'HOD') {
-                // Use HOD API - note: GET endpoint is plural "students"
                 studentsResponse = await api.get(`${API_PREFIX}/hod/students`);
             } else {
-                // Use Teacher API
-                studentsResponse = await api.get(`${API_PREFIX}/teachers/${user.userId}/students`);
+                studentsResponse = await api.get(`${API_PREFIX}/teachers/${userId}/students`);
             }
 
             const [classesResponse, divisionsResponse] = await Promise.all([
-                commonAPI.getClasses(),
-                commonAPI.getDivisions()
+                hodAPI.getAllClasses(),
+                hodAPI.getAllDivisions()
             ]);
 
             console.log('📥 API response students:', studentsResponse);
@@ -462,27 +461,24 @@
         try {
             showLoading();
             const user = getCurrentUser();
-            if (!user || !user.userId) {
+            if (!user || (!user.userId && !user.id)) {
                 throw new Error('User not found');
             }
-            
+            const userId = user.userId || user.id;
             const role = String(user.role).toUpperCase();
-            
-            // No need to add teacherId - students are assigned via class/division
-            console.log('🚀 Sending student payload:', payload);
             
             if (editingStudentId) {
                 if (role === 'HOD') {
                     await api.put(`${API_PREFIX}/hod/students/${editingStudentId}`, payload);
                 } else {
-                    await api.put(`${API_PREFIX}/teachers/${user.userId}/students/${editingStudentId}`, payload);
+                    await api.put(`${API_PREFIX}/teachers/${userId}/students/${editingStudentId}`, payload);
                 }
                 showSuccess('Student updated successfully');
             } else {
                 if (role === 'HOD') {
                     await api.post(`${API_PREFIX}/hod/student`, payload);
                 } else {
-                    await api.post(`${API_PREFIX}/teachers/${user.userId}/students`, payload);
+                    await api.post(`${API_PREFIX}/teachers/${userId}/students`, payload);
                 }
                 showSuccess('Student created successfully');
             }
@@ -568,12 +564,13 @@
                     throw new Error('User not found');
                 }
                 
+                const userId = user.userId || user.id;
                 const role = String(user.role).toUpperCase();
                 
                 if (role === 'HOD') {
                     await api.delete(`${API_PREFIX}/hod/students/${id}`);
                 } else {
-                    await api.delete(`${API_PREFIX}/teachers/${user.userId}/students/${id}`);
+                    await api.delete(`${API_PREFIX}/teachers/${userId}/students/${id}`);
                 }
                 
                 showSuccess('Student deleted successfully');

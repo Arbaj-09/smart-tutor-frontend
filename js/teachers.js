@@ -330,16 +330,16 @@
         try {
             showGlobalLoading();
             if (editingTeacherId) {
-                await api.hod.teachers.update(editingTeacherId, teacherData);
+                await hodAPI.updateTeacher(editingTeacherId, teacherData);
                 showSuccess('Teacher updated successfully');
             } else {
-                await api.hod.teachers.create(teacherData);
+                await hodAPI.createTeacher(teacherData);
                 showSuccess('Teacher created successfully');
             }
             closeModal();
             loadTeachers();
         } catch (error) {
-            showError(error.message);
+            showError(error.message || 'Operation failed');
         } finally {
             hideGlobalLoading();
         }
@@ -505,9 +505,10 @@
         sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending email, please wait...';
 
         try {
-            const response = await api.hod.teachers.sendLoginEmail(teacherId);
+            const response = await fetch(`http://localhost:8082/api/hod/teachers/${teacherId}/send-login-email`, { method: 'POST' });
+            const data = await response.json();
             closeModal();
-            showSuccess('Email sent successfully to ' + response.teacherEmail);
+            showSuccess('Email sent successfully to ' + (data.teacherEmail || ''));
         } catch (error) {
             showError('Failed to send email: ' + error.message);
             sendBtn.disabled = false;
@@ -518,18 +519,13 @@
     async function deleteTeacher(id) {
         console.log('🖱️ Delete clicked for ID:', id);
         console.log('⚠️ Delete confirmation triggered');
-        const confirmed = await showConfirm({
-            title: 'Delete Teacher',
-            message: 'Are you sure you want to delete this teacher? This action cannot be undone.',
-            confirmText: 'Delete',
-            confirmClass: 'btn-danger'
-        });
+        const confirmed = await showConfirm('Are you sure you want to delete this teacher? This action cannot be undone.');
 
         console.log('🧨 Delete confirmed:', confirmed);
         if (confirmed) {
             try {
                 showGlobalLoading();
-                await api.hod.teachers.delete(id);
+                await hodAPI.deleteTeacher(id);
                 showSuccess('Teacher deleted successfully');
                 loadTeachers();
             } catch (error) {

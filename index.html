@@ -156,17 +156,12 @@
                 
                 const user = JSON.parse(responseText);
                 
-                // Fix role for specific user to access teacher dashboard
-                if (user.email === 'arbajshaikh95561164142@gmail.com' && user.role === 'STUDENT') {
-                    user.role = 'TEACHER';
-                    console.log('🔍 LOGIN: Updated role to TEACHER for arbajshaikh95561164142@gmail.com');
-                }
-                
-                // Store user data using simple auth system
+                // Store user data
                 console.log('🔍 LOGIN: Storing user data:', user);
                 localStorage.setItem('user', JSON.stringify({
                     role: user.role,
                     userId: user.id,
+                    id: user.id,
                     name: user.name,
                     email: user.email
                 }));

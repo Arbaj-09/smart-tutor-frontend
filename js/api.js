@@ -109,11 +109,15 @@ const hodAPI = {
     // Classes
     getAllClasses: () => api.get(`${API_PREFIX}/hod/classes`),
     createClass: (classData) => api.post(`${API_PREFIX}/hod/class`, classData),
+    updateClass: (id, classData) => api.put(`${API_PREFIX}/hod/classes/${id}`, classData),
+    deleteClass: (id) => api.delete(`${API_PREFIX}/hod/classes/${id}`),
     
     // Divisions
     getAllDivisions: () => api.get(`${API_PREFIX}/hod/divisions`),
     createDivision: (divisionData) => api.post(`${API_PREFIX}/hod/division`, divisionData),
     getDivisionsByClass: (classId) => api.get(`${API_PREFIX}/hod/divisions/class/${classId}`),
+    updateDivision: (id, data) => api.put(`${API_PREFIX}/hod/divisions/${id}`, data),
+    deleteDivision: (id) => api.delete(`${API_PREFIX}/hod/divisions/${id}`),
     
     // Teachers
     getAllTeachers: () => api.get(`${API_PREFIX}/hod/teachers`),

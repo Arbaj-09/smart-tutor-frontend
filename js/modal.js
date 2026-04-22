@@ -44,6 +44,7 @@ function showModal(options = {}) {
         title = null,
         content = null,
         buttons = null,
+        customActions = null,
         size = 'medium',
         closeOnOverlay = true,
         onConfirm = null,
@@ -64,6 +65,7 @@ function showModal(options = {}) {
         title: title || template.title,
         content: content || template.content,
         buttons: buttons || template.buttons,
+        customActions,
         size,
         customClass
     });
@@ -99,7 +101,22 @@ function showModal(options = {}) {
 
 // Create modal HTML
 function createModalHTML(options) {
-    const { title, content, buttons, size, customClass } = options;
+    const { title, content, buttons, customActions, size, customClass } = options;
+    
+    let footerHTML = '';
+    if (customActions) {
+        footerHTML = `<div class="modal-footer">${customActions}</div>`;
+    } else if (buttons) {
+        footerHTML = `
+            <div class="modal-footer">
+                ${buttons.map(btn => `
+                    <button class="btn ${btn.class}" data-action="${btn.action}">
+                        ${btn.text}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    }
     
     return `
         <div class="modal-overlay ${customClass}">
@@ -113,15 +130,7 @@ function createModalHTML(options) {
                 <div class="modal-body">
                     ${content}
                 </div>
-                ${buttons ? `
-                    <div class="modal-footer">
-                        ${buttons.map(btn => `
-                            <button class="btn ${btn.class}" data-action="${btn.action}">
-                                ${btn.text}
-                            </button>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                ${footerHTML}
             </div>
         </div>
     `;
@@ -215,7 +224,11 @@ function handleModalAction(action, modal, callbacks) {
 
 // Close modal
 function closeModal(modal, callback = null) {
-    if (!modal) return;
+    if (!modal) {
+        // No arg passed — close the topmost active modal
+        modal = modalState.activeModal;
+        if (!modal) return;
+    }
     
     modal.classList.remove('active');
     

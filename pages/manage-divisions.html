@@ -176,9 +176,10 @@
 
         // Initialize page with sidebar
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.loadSidebar) {
-                window.loadSidebar();
-            }
+            if (window.loadSidebar) window.loadSidebar();
+            // Wire up header Add Division button
+            const addBtn = document.getElementById('addDivisionBtn');
+            if (addBtn) addBtn.addEventListener('click', () => window.divisionsApp?.showCreateModal());
         });
     </script>
 </body>

@@ -26,7 +26,7 @@
         console.log('📡 Calling API: /api/hod/classes');
         try {
             showGlobalLoading();
-            const classes = await api.hod.classes.getAll();
+            const classes = await hodAPI.getAllClasses();
             console.log('📥 API response classes:', classes);
             allClasses = classes || [];
             filteredClasses = [...allClasses];
@@ -225,7 +225,7 @@
 
         try {
             showGlobalLoading();
-            await api.hod.classes.create(classData);
+            await hodAPI.createClass(classData);
             closeModal();
             showSuccess('Class created successfully');
             loadClasses();
@@ -330,7 +330,7 @@
         };
         try {
             showGlobalLoading();
-            await api.hod.classes.update(id, classData);
+            await hodAPI.updateClass(id, classData);
             closeModal();
             showSuccess('Class updated successfully');
             loadClasses();
@@ -344,18 +344,13 @@
     async function deleteClass(id) {
         console.log('🖱️ Delete clicked for ID:', id);
         console.log('⚠️ Delete confirmation triggered');
-        const confirmed = await showConfirm({
-            title: 'Delete Class',
-            message: 'Are you sure you want to delete this class? This action cannot be undone.',
-            confirmText: 'Delete',
-            confirmClass: 'btn-danger'
-        });
+        const confirmed = await showConfirm('Are you sure you want to delete this class? This action cannot be undone.');
 
         console.log('🧨 Delete confirmed:', confirmed);
         if (confirmed) {
             try {
                 showGlobalLoading();
-                await api.hod.classes.delete(id);
+                await hodAPI.deleteClass(id);
                 showSuccess('Class deleted successfully');
                 loadClasses();
             } catch (error) {

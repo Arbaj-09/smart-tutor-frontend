@@ -96,12 +96,27 @@ function updatePaginationInfo(start, end, total, containerId = 'paginationInfo')
 // Error display function
 function showError(message) {
     console.error(message);
-    // Try to use toast if available, otherwise alert
     if (window.showToast) {
         showToast(message, 'error');
     } else {
         alert(message);
     }
+}
+
+// Success display function
+function showSuccess(message) {
+    if (window.showToast) {
+        showToast(message, 'success');
+    } else {
+        alert(message);
+    }
+}
+
+// Confirm dialog (returns Promise<boolean>)
+function showConfirm(message) {
+    return new Promise(resolve => {
+        resolve(window.confirm(message));
+    });
 }
 
 // Global error handler
@@ -124,3 +139,5 @@ window.clearFormErrors = clearFormErrors;
 window.showFieldError = showFieldError;
 window.updatePaginationInfo = updatePaginationInfo;
 window.showError = showError;
+window.showSuccess = showSuccess;
+window.showConfirm = showConfirm;

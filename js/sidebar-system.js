@@ -295,7 +295,6 @@ class SidebarSystem {
 
         if (confirmed) {
             localStorage.removeItem('currentUser');
-            sessionStorage.clear();
             window.location.href = '../index.html';
         }
     }

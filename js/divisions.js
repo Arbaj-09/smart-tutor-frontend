@@ -279,16 +279,14 @@
 
         showModal({
             title: isEdit ? 'Edit Division' : 'Create New Division',
-            body: formHtml,
-            footer: `
+            content: formHtml,
+            customActions: `
                 <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="window.divisionsApp.submitDivision()">${isEdit ? 'Update' : 'Create'}</button>
             `
         });
 
-        if (isEdit) {
-            editingDivisionId = divisionId;
-        }
+        editingDivisionId = isEdit ? divisionId : null;
     }
 
     async function submitDivision() {
@@ -298,10 +296,10 @@
         const fd = new FormData(form);
         const payload = {
             divisionName: fd.get('divisionName')?.trim(),
-            classId: Number(fd.get('classId')),
+            classEntity: { id: Number(fd.get('classId')) }
         };
 
-        if (!payload.divisionName || !payload.classId) {
+        if (!payload.divisionName || !payload.classEntity.id) {
             showError('Please fill all required fields');
             return;
         }
@@ -310,8 +308,10 @@
             showGlobalLoading();
             if (editingDivisionId) {
                 await hodAPI.updateDivision(editingDivisionId, payload);
+                showSuccess('Division updated successfully');
             } else {
                 await hodAPI.createDivision(payload);
+                showSuccess('Division created successfully');
             }
             closeModal();
             await loadDivisions();
@@ -343,8 +343,8 @@
         console.log('🪟 Opening modal with data:', division);
         showModal({
             title: 'Division Details',
-            body: contentHtml,
-            footer: `
+            content: contentHtml,
+            customActions: `
                 <button class="btn btn-primary" onclick="closeModal()">Close</button>
             `
         });
@@ -361,7 +361,6 @@
             return;
         }
 
-        console.log('🪟 Opening modal with data:', division);
         openDivisionModal({ mode: 'edit', division });
     }
 
@@ -375,12 +374,7 @@
         }
 
         console.log('⚠️ Delete confirmation triggered');
-        const confirmed = await showConfirm({
-            title: 'Delete Division',
-            message: `Are you sure you want to delete <strong>${safeText(division.divisionName)}</strong>? This action cannot be undone.`,
-            confirmText: 'Delete',
-            cancelText: 'Cancel'
-        });
+        const confirmed = await showConfirm(`Are you sure you want to delete "${division.divisionName}"? This action cannot be undone.`);
 
         console.log('🧨 Delete confirmed:', confirmed);
         if (confirmed) {
@@ -418,10 +412,14 @@
 
     // Expose public functions
     window.divisionsApp = {
+        showCreateModal: () => openDivisionModal({ mode: 'create' }),
         viewDivision,
         editDivision,
         deleteDivision,
         submitDivision,
+        applyFilters,
+        resetFilters,
+        refreshData: loadDivisions,
         nextPage,
         prevPage
     };
